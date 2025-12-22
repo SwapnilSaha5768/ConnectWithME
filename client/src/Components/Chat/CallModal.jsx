@@ -45,6 +45,14 @@ const CallModal = ({
         }
     }, [userVideo, callAccepted]);
 
+    // Attach Local Stream (Fix for "My Mic" not moving)
+    useEffect(() => {
+        if (myVideo?.current && stream) {
+            myVideo.current.srcObject = stream;
+            myVideo.current.play().catch(e => console.error("Local Audio play failed", e));
+        }
+    }, [myVideo, stream]);
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-dark-surface border border-neon-blue/20 rounded-2xl p-8 w-full max-w-md flex flex-col items-center shadow-[0_0_30px_rgba(0,243,255,0.1)]">
@@ -84,6 +92,17 @@ const CallModal = ({
                         </div>
                     )}
                 </div>
+
+                {/* Debugging / Mobile Unlock */}
+                <button
+                    onClick={() => {
+                        if (myVideo.current) myVideo.current.play();
+                        if (userVideo.current) userVideo.current.play();
+                    }}
+                    className="text-xs text-neon-blue underline mb-4 hover:text-white transition-colors"
+                >
+                    Tap here if no audio (Unlock)
+                </button>
 
                 {/* Controls */}
                 <div className="flex items-center gap-6">

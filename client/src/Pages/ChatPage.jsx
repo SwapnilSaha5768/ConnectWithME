@@ -81,6 +81,13 @@ const ChatPage = () => {
     const getMedia = async () => {
         try {
             const currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Debug: Check tracks
+            const audioTrack = currentStream.getAudioTracks()[0];
+            if (!audioTrack) alert("No audio track found in stream!");
+            else if (!audioTrack.enabled) alert("Audio track is disabled/muted by system!");
+            else if (audioTrack.readyState === 'ended') alert("Audio track has ended/failed!");
+
             setStream(currentStream);
             if (myVideo.current) myVideo.current.srcObject = currentStream;
             return currentStream;
@@ -100,7 +107,17 @@ const ChatPage = () => {
         const currentStream = await getMedia();
         if (!currentStream) return;
 
-        const peer = new Peer({ initiator: false, trickle: true, stream: currentStream });
+        const peer = new Peer({
+            initiator: false,
+            trickle: true,
+            stream: currentStream,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        });
 
         peer.on('signal', (data) => {
             if (data.type === 'offer' || data.type === 'answer') {
@@ -132,7 +149,17 @@ const ChatPage = () => {
         setCallEnded(false);
         setCallAccepted(false);
 
-        const peer = new Peer({ initiator: true, trickle: true, stream: currentStream });
+        const peer = new Peer({
+            initiator: true,
+            trickle: true,
+            stream: currentStream,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        });
 
         peer.on('signal', (data) => {
             if (data.type === 'offer' || data.type === 'answer') {
