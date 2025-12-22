@@ -4,6 +4,7 @@ import axios from 'axios';
 import { ChatState } from '../../Context/ChatProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileModal from '../Miscellaneous/ProfileModal';
+import { Search, ArrowLeft } from 'lucide-react';
 
 const SideDrawer = () => {
     const [search, setSearch] = useState('');
@@ -68,11 +69,11 @@ const SideDrawer = () => {
         <>
             <div className='flex justify-between items-center bg-white/5 backdrop-blur-md w-full p-3 border-b border-white/10 sticky top-0 z-20'>
                 <button
-                    className='flex items-center px-2 md:px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all text-gray-200 hover:text-white border border-white/5'
+                    className='flex items-center justify-center p-3 bg-white/10 rounded-full hover:bg-white/20 transition-all text-gray-200 hover:text-neon-classy border border-white/5 group'
                     onClick={() => setDrawerOpen(true)}
+                    title="Search Users"
                 >
-                    <i className="fas fa-search md:mr-2"></i>
-                    <span className='font-medium hidden md:flex font-sans'>Search User</span>
+                    <Search size={22} className="group-hover:text-neon-blue transition-colors" />
                 </button>
 
                 <h2 className='text-2xl md:text-3xl font-bold text-gradient font-display tracking-wider cursor-default drop-shadow-md'>
@@ -129,7 +130,14 @@ const SideDrawer = () => {
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             className="fixed left-0 top-0 h-full w-full md:w-80 bg-[#0F0F0F] border-r border-white/10 z-50 shadow-2xl overflow-y-auto"
                         >
-                            <div className="p-5 border-b border-white/10">
+                            <div className="p-5 border-b border-white/10 flex items-center gap-3">
+                                {/* Mobile Back Button */}
+                                <button
+                                    onClick={() => setDrawerOpen(false)}
+                                    className="md:hidden p-2 rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                                >
+                                    <ArrowLeft size={24} />
+                                </button>
                                 <h3 className='text-xl font-bold text-gradient font-display'>Search Users</h3>
                             </div>
                             <div className="p-4 flex space-x-2">

@@ -28,7 +28,8 @@ const ChatPage = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
-        if (socket?.connected) setSocketConnected(true);
+        if (!socket) return;
+        if (socket.connected) setSocketConnected(true);
 
         // Re-join room on reconnect (Crucial for mobile stability)
         socket.on('connect', () => {

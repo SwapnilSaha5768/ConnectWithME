@@ -98,4 +98,18 @@ const deleteMessage = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { allMessages, sendMessage, deleteMessage };
+// @desc    Clear all messages in a chat
+// @route   DELETE /api/message/clear/:chatId
+// @access  Protected
+const clearChatMessages = asyncHandler(async (req, res) => {
+    try {
+        await Message.deleteMany({ chat: req.params.chatId });
+        await Chat.findByIdAndUpdate(req.params.chatId, { latestMessage: null });
+        res.json({ message: "Chat cleared successfully", chatId: req.params.chatId });
+    } catch (error) {
+        res.status(400);
+        throw new Error(error.message);
+    }
+});
+
+module.exports = { allMessages, sendMessage, deleteMessage, clearChatMessages };

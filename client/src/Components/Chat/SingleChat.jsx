@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import ScrollableChat from './ScrollableChat';
 import UpdateGroupChatModal from '../Miscellaneous/UpdateGroupChatModal';
 import ProfileModal from '../Miscellaneous/ProfileModal';
-import { Plus, MapPin, Mic, X, Image as ImageIcon, Phone } from 'lucide-react';
+import { Plus, MapPin, Mic, X, Image as ImageIcon, Phone, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ENDPOINT = import.meta.env.VITE_SERVER_URL || '/';
@@ -200,9 +200,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
             }
         });
 
+        socket.on('chat cleared', (chatId) => {
+            if (selectedChatCompare && selectedChatCompare._id === chatId) {
+                setMessages([]);
+            }
+        });
+
         return () => { // Cleanup listeners to prevent duplicates
             socket.off('message recieved');
             socket.off('message deleted');
+            socket.off('chat cleared');
         };
     }, [socket, messages]);
 
@@ -263,6 +270,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                                         title="Audio Call"
                                     >
                                         <Phone size={18} />
+                                    </button>
+                                    <button
+                                        className="bg-white/10 p-2 rounded-full hover:bg-white/20 ml-2 transition-colors text-red-500 hover:text-red-400"
+                                        onClick={async () => {
+                                            if (window.confirm("Are you sure you want to clear the entire chat history? This cannot be undone.")) {
+                                                try {
+                                                    const config = { headers: { Authorization: `Bearer ${user.token}` } };
+                                                    await axios.delete(`/api/message/clear/${selectedChat._id}`, config);
+                                                    if (socket) socket.emit('chat cleared', selectedChat._id);
+                                                    setMessages([]);
+                                                } catch (error) {
+                                                    alert("Failed to clear chat");
+                                                }
+                                            }
+                                        }}
+                                        title="Clear Chat History"
+                                    >
+                                        <Trash2 size={18} />
                                     </button>
                                     <ProfileModal user={getSenderFull(user, selectedChat.users)}>
                                         <i className="fas fa-eye bg-white/10 p-2 rounded-full cursor-pointer hover:bg-white/20 ml-2 transition-colors text-neon-blue"></i>

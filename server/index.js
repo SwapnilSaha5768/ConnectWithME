@@ -91,6 +91,11 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('chat cleared', (chatId) => {
+    socket.emit('chat cleared', chatId); // Reflect back to sender
+    socket.in(chatId).emit('chat cleared', chatId); // Broadcast to room
+  });
+
   // WebRTC Signaling Events
   socket.on("callUser", (data) => {
     console.log(`[callUser] server received call from ${data.from} to ${data.userToCall}`);

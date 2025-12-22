@@ -23,6 +23,7 @@ const MyChats = ({ fetchAgain }) => {
     }, [fetchAgain]);
 
     const getSender = (loggedUser, users) => {
+        if (!loggedUser || !users || users.length < 2) return "User";
         return users[0]._id === loggedUser._id ? users[1].name : users[0].name;
     }
 
@@ -37,7 +38,7 @@ const MyChats = ({ fetchAgain }) => {
                 </GroupChatModal>
             </div>
             <div className="flex flex-col w-full h-full overflow-y-hidden">
-                {chats ? (
+                {chats && loggedUser ? (
                     <div className="overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                         {chats.map((chat) => (
                             <div
