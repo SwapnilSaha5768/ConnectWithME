@@ -29,7 +29,14 @@ const ChatPage = () => {
 
     useEffect(() => {
         if (socket?.connected) setSocketConnected(true);
-    }, [socket]);
+
+        // Re-join room on reconnect (Crucial for mobile stability)
+        socket.on('connect', () => {
+            console.log("Socket re-connected, re-joining room");
+            socket.emit('setup', user);
+            setSocketConnected(true);
+        });
+    }, [socket, user]); // Added user dependency
 
     useEffect(() => {
         if (!socket) return;
@@ -203,7 +210,7 @@ const ChatPage = () => {
             setStream(null);
         }
         setCall({});
-        // window.location.reload(); 
+        window.location.reload(); // Force reload to ensure mic/connection is completely killed
     };
 
     return (
