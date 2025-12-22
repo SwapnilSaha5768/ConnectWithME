@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 
-const ENDPOINT = 'http://10.11.205.79:5000';
+const ENDPOINT = import.meta.env.VITE_SERVER_URL || '/';
 
 const ChatContext = createContext();
 

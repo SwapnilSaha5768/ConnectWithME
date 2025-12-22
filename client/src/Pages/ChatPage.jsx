@@ -75,7 +75,11 @@ const ChatPage = () => {
             return currentStream;
         } catch (err) {
             console.error("Failed to get media", err);
-            alert("Could not access microphone.");
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDismissedError') {
+                alert("Microphone access blocked. Please reset site permissions in your browser settings (look for the Lock icon in URL bar).");
+            } else {
+                alert(`Microphone Error: ${err.name} - ${err.message}`);
+            }
             return null;
         }
     };

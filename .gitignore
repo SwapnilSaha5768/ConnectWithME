@@ -39,3 +39,4 @@ s:\ConnecT\server\.env
 client/.env
 server/.env
 .env
+node_modules

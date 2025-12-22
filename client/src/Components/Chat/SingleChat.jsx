@@ -171,7 +171,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
             setLoading(false);
             if (socket) socket.emit('join chat', selectedChat._id);
         } catch (error) {
-            alert("Failed to load messages");
+            alert(`Failed to load messages: ${error.message}`);
             setLoading(false);
         }
     };
@@ -321,7 +321,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                                                             setMessages((prev) => [...prev, data]);
                                                             setShowAttach(false); // Close menu after sending
                                                         } catch (error) {
-                                                            alert("Failed to send location");
+                                                            alert(`Failed to send location: ${error.message}`);
                                                         }
                                                     });
                                                 }}
