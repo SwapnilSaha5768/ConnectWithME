@@ -20,12 +20,13 @@ const sendEmail = async (options) => {
 
     const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
-        port: 587,
+        port: 2525, // Port 2525 is often open when 587 is blocked
         secure: false,
         auth: {
             user: process.env.BREVO_SMTP_USER,
             pass: process.env.BREVO_SMTP_PASS,
         },
+        family: 4, // Force IPv4 (Critical for cloud deployments)
         connectionTimeout: 10000,
     });
 
