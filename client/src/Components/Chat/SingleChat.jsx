@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import ScrollableChat from './ScrollableChat';
 import UpdateGroupChatModal from '../Miscellaneous/UpdateGroupChatModal';
 import ProfileModal from '../Miscellaneous/ProfileModal';
-import { Plus, MapPin, Mic, X, Image as ImageIcon, Phone, Trash2 } from 'lucide-react';
+import { Plus, MapPin, Mic, X, Image as ImageIcon, Phone, Trash2, Video, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ENDPOINT = import.meta.env.VITE_SERVER_URL || '/';
@@ -22,17 +22,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
     const [isRecording, setIsRecording] = useState(false);
     const [permissionGranted, setPermissionGranted] = useState(false);
     const [imgLoading, setImgLoading] = useState(false);
+    const [showCallMenu, setShowCallMenu] = useState(false);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
 
-    // File input ref for image upload
     const fileInputRef = useRef(null);
 
-    // Swipe Gesture Refs
     const touchStart = useRef(null);
     const touchEnd = useRef(null);
 
-    // Block state
     const [isBlocked, setIsBlocked] = useState(false);
     const [isBlockedBy, setIsBlockedBy] = useState(false);
 
@@ -45,7 +43,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setPermissionGranted(true);
-            // Stop tracks immediately as we just wanted permission
             stream.getTracks().forEach(track => track.stop());
         } catch (err) {
             console.error("Mic error:", err);
@@ -162,10 +159,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
         return users[0]._id === loggedUser._id ? users[1] : users[0];
     };
 
-    // Handle Hardware Back Button
     useEffect(() => {
         if (selectedChat) {
-            // Push a state so back button doesn't exit the whole app
             window.history.pushState(null, "", window.location.href);
 
             const handlePopState = () => {
@@ -255,13 +250,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
         if (!socket) return;
         socket.on('message recieved', (newMessageRecieved) => {
             if (!selectedChatCompare || selectedChatCompare._id !== newMessageRecieved.chat._id) {
-                // Notification logic handled in ChatPage
             } else {
                 setMessages([...messages, newMessageRecieved]);
-                // If chat is open, mark as read immediately
                 if (selectedChatCompare._id === newMessageRecieved.chat._id) {
                     axios.put('/api/message/read', { chatId: selectedChatCompare._id }, {
-                        headers: { Authorization: `Bearer ${user.token}` } // Ensure auth
+                        headers: { Authorization: `Bearer ${user.token}` }
                     }).catch(err => console.error(err));
                     socket.emit('read message', { chatId: selectedChatCompare._id, userId: user._id });
                 }
@@ -294,7 +287,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
             }
         });
 
-        return () => { // Cleanup listeners to prevent duplicates
+        return () => {
             socket.off('message recieved');
             socket.off('message deleted');
             socket.off('chat cleared');
@@ -372,21 +365,53 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="relative">
                                     <button
-                                        className={`p-3 rounded-full transition-all group border ${isBlocked || isBlockedBy
-                                            ? 'bg-gray-500/10 text-gray-500 border-gray-500/10 cursor-not-allowed'
-                                            : 'bg-white/5 hover:bg-neon-blue/20 text-neon-blue border-white/10'}`}
-                                        onClick={() => {
-                                            if (isBlocked || isBlockedBy) return;
-                                            const friend = getSenderFull(user, selectedChat.users);
-                                            startCall(friend._id, friend.name, friend.pic);
-                                        }}
-                                        title="Audio Call"
-                                        disabled={isBlocked || isBlockedBy}
+                                        className="p-3 rounded-full hover:bg-white/10 text-gray-300 transition-all border border-transparent hover:border-white/5"
+                                        onClick={() => setShowCallMenu(!showCallMenu)}
                                     >
-                                        <Phone size={20} className={!(isBlocked || isBlockedBy) ? "group-hover:scale-110 transition-transform" : ""} />
+                                        <MoreVertical size={24} />
                                     </button>
+                                    <AnimatePresence>
+                                        {showCallMenu && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                className="absolute right-0 top-12 bg-dark-surface border border-white/10 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] z-50 overflow-hidden min-w-[180px] backdrop-blur-xl"
+                                            >
+                                                <button
+                                                    className={`w-full flex items-center gap-3 p-4 hover:bg-white/5 transition-all text-left ${isBlocked || isBlockedBy ? 'opacity-50 cursor-not-allowed' : 'text-neon-blue hover:text-white'}`}
+                                                    onClick={() => {
+                                                        if (isBlocked || isBlockedBy) return;
+                                                        const friend = getSenderFull(user, selectedChat.users);
+                                                        startCall(friend._id, friend.name, friend.pic, true);
+                                                        setShowCallMenu(false);
+                                                    }}
+                                                    disabled={isBlocked || isBlockedBy}
+                                                >
+                                                    <Video size={16} />
+                                                    <span className="font-sans text-sm">Video Call</span>
+                                                </button>
+                                                <button
+                                                    className={`w-full flex items-center gap-3 p-4 hover:bg-white/5 transition-all text-left ${isBlocked || isBlockedBy ? 'opacity-50 cursor-not-allowed' : 'text-neon-pink hover:text-white'}`}
+                                                    onClick={() => {
+                                                        if (isBlocked || isBlockedBy) return;
+                                                        const friend = getSenderFull(user, selectedChat.users);
+                                                        startCall(friend._id, friend.name, friend.pic, false);
+                                                        setShowCallMenu(false);
+                                                    }}
+                                                    disabled={isBlocked || isBlockedBy}
+                                                >
+                                                    <Phone size={16} />
+                                                    <span className="font-sans text-sm">Voice Call</span>
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    {showCallMenu && (
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowCallMenu(false)}></div>
+                                    )}
                                 </div>
                             </>
                         ) : (

@@ -53,7 +53,7 @@ const ChatPage = () => {
 
         // Call Events
         socket.on('callUser', (data) => {
-            setCall({ isReceivingCall: true, from: data.from, name: data.name, signal: data.signal, pic: data.pic });
+            setCall({ isReceivingCall: true, from: data.from, name: data.name, signal: data.signal, pic: data.pic, isVideo: data.isVideo });
             setIsIncoming(true);
         });
 
@@ -84,15 +84,10 @@ const ChatPage = () => {
         selectedChatCompare = selectedChat;
     }, [selectedChat]);
 
-    const getMedia = async () => {
+    const getMedia = async (isVideo = false) => {
         try {
-            const currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            // Debug: Check tracks
-            const audioTrack = currentStream.getAudioTracks()[0];
-            if (!audioTrack) alert("No audio track found in stream!");
-            else if (!audioTrack.enabled) alert("Audio track is disabled/muted by system!");
-            else if (audioTrack.readyState === 'ended') alert("Audio track has ended/failed!");
+            const constraints = { audio: true, video: isVideo };
+            const currentStream = await navigator.mediaDevices.getUserMedia(constraints);
 
             setStream(currentStream);
             if (myVideo.current) myVideo.current.srcObject = currentStream;
@@ -100,9 +95,9 @@ const ChatPage = () => {
         } catch (err) {
             console.error("Failed to get media", err);
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDismissedError') {
-                alert("Microphone access blocked. Please reset site permissions in your browser settings (look for the Lock icon in URL bar).");
+                alert("Camera/Microphone access blocked. Please reset site permissions in your browser settings.");
             } else {
-                alert(`Microphone Error: ${err.name} - ${err.message}`);
+                alert(`Media Error: ${err.name} - ${err.message}`);
             }
             return null;
         }
@@ -110,7 +105,10 @@ const ChatPage = () => {
 
     const answerCall = async () => {
         setCallAccepted(true);
-        const currentStream = await getMedia();
+        // If the incoming call is video, we answer with video? 
+        // For now, let's default to answering with video if the call was video, or maybe just always ask for video if available?
+        // Let's check call.isVideo property (which we need to add to the signal).
+        const currentStream = await getMedia(call.isVideo);
         if (!currentStream) return;
 
         const peer = new Peer({
@@ -146,11 +144,11 @@ const ChatPage = () => {
         connectionRef.current = peer;
     };
 
-    const startCall = async (idToCall, userName, userPic) => {
-        const currentStream = await getMedia();
+    const startCall = async (idToCall, userName, userPic, isVideo = false) => {
+        const currentStream = await getMedia(isVideo);
         if (!currentStream) return;
 
-        setCall({ isReceivingCall: false, name: userName, pic: userPic, from: user._id, userToCall: idToCall });
+        setCall({ isReceivingCall: false, name: userName, pic: userPic, from: user._id, userToCall: idToCall, isVideo });
         setIsIncoming(false);
         setCallEnded(false);
         setCallAccepted(false);
@@ -174,7 +172,8 @@ const ChatPage = () => {
                     signalData: data,
                     from: user._id,
                     name: user.name,
-                    pic: user.pic
+                    pic: user.pic,
+                    isVideo
                 });
             } else if (data.candidate) {
                 socket.emit('ice-candidate', { candidate: data, to: idToCall });

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Peer from 'simple-peer';
-import { Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 
 const CallModal = ({
     stream,
@@ -14,12 +14,24 @@ const CallModal = ({
     leaveCall,
     isIncoming
 }) => {
+    const isVideoCall = call.isVideo || (stream && stream.getVideoTracks().length > 0);
+    const [videoEnabled, setVideoEnabled] = useState(true);
     const [muted, setMuted] = useState(false);
 
     const toggleMute = () => {
         if (stream) {
             setMuted(!muted);
             stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
+        }
+    };
+
+    const toggleVideo = () => {
+        if (stream) {
+            setVideoEnabled(!videoEnabled);
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+            }
         }
     };
 
@@ -54,71 +66,141 @@ const CallModal = ({
     }, [myVideo, stream]);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-dark-surface border border-neon-blue/20 rounded-2xl p-8 w-full max-w-md flex flex-col items-center shadow-[0_0_30px_rgba(0,243,255,0.1)]">
+        <div className="fixed inset-0 z-[100] w-full h-full bg-black flex text-white overflow-hidden">
 
-                {/* Avatar / User Info */}
-                <div className="relative mb-8">
-                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-neon-blue/30 shadow-[0_0_20px_rgba(0,243,255,0.2)]">
+            {/* --- REMOTE VIDEO (Full Screen Background) --- */}
+            <div className="absolute inset-0 w-full h-full">
+                {callAccepted && !callEnded && isVideoCall ? (
+                    <video
+                        playsInline
+                        ref={userVideo}
+                        autoPlay
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    /* Blurred Background for Incoming/Calling state or No Video */
+                    <div className="w-full h-full relative">
                         <img
                             src={call.pic || "https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg"}
-                            alt={call.name}
-                            className="w-full h-full object-cover"
+                            alt="background"
+                            className="w-full h-full object-cover blur-3xl opacity-50"
                         />
+                        <div className="absolute inset-0 bg-black/40"></div>
                     </div>
-                    {/* Ripples for calling state */}
-                    {!callAccepted && !callEnded && (
-                        <div className="absolute inset-0 rounded-full border-2 border-neon-blue animate-ping opacity-20"></div>
+                )}
+            </div>
+
+            {/* --- CENTER INFO (Calling / Incoming) --- */}
+            {(!callAccepted || callEnded) && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-20 animate-fade-in text-center p-4">
+                    <div className="relative mb-8">
+                        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-neon-blue shadow-[0_0_40px_rgba(0,243,255,0.3)] bg-gray-900">
+                            <img
+                                src={call.pic || "https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg"}
+                                alt={call.name}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                        {/* Ripples */}
+                        {!callAccepted && !callEnded && (
+                            <>
+                                <div className="absolute inset-0 rounded-full border-2 border-neon-blue animate-ping opacity-30 delay-100"></div>
+                                <div className="absolute inset-0 rounded-full border-2 border-neon-blue animate-ping opacity-20 delay-300"></div>
+                            </>
+                        )}
+                    </div>
+
+                    <h2 className="text-3xl md:text-4xl font-display font-light mb-2 drop-shadow-lg">
+                        {isIncoming ? "Incoming Call..." : "Calling..."}
+                    </h2>
+                    <p className="text-2xl md:text-3xl font-bold text-neon-blue drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]">
+                        {call.name || name}
+                    </p>
+                </div>
+            )}
+
+            {/* --- LOCAL VIDEO (Picture in Picture) --- */}
+            {stream && isVideoCall && (
+                <div className={`absolute bottom-24 right-4 md:bottom-8 md:right-8 w-32 md:w-64 aspect-video bg-gray-900 rounded-xl overflow-hidden border-2 border-neon-blue/50 shadow-2xl z-30 transition-all duration-300 ${!callAccepted ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                    <video
+                        playsInline
+                        muted
+                        ref={myVideo}
+                        autoPlay
+                        className={`w-full h-full object-cover scale-x-[-1] ${!videoEnabled ? 'hidden' : ''}`}
+                    />
+                    {!videoEnabled && (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-500">
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-600">
+                                    {/* Try to show own avatar if available in future, for now generic placeholder or icon */}
+                                    {/* Assuming we might want to pass 'user' prop or just show icon */}
+                                    <VideoOff size={24} />
+                                </div>
+                                <span className="text-xs">Camera Off</span>
+                            </div>
+                        </div>
                     )}
                 </div>
+            )}
 
-                <h2 className="text-2xl font-display text-white mb-2">
-                    {callAccepted ? "In Call with" : isIncoming ? "Incoming Call..." : "Calling..."}
-                </h2>
-                <p className="text-xl font-bold text-neon-blue mb-8">{call.name || name}</p>
+            {/* Only for verifying stream audio when video is off logic, hidden audio element if needed but existing refs handle it. 
+                The 'myVideo' ref handles local stream. 'userVideo' handles remote. 
+            */}
 
-                {/* Hidden Audio Elements for Stream Playback */}
-                {stream && (
-                    <audio playsInline ref={myVideo} autoPlay muted className="hidden" />
+            {/* --- CONTROLS --- */}
+            <div className="absolute bottom-8 left-0 w-full flex justify-center items-center gap-6 z-40 px-4">
+
+                {/* Answer/Decline Logic */}
+                {!callAccepted && isIncoming ? (
+                    <>
+                        <button
+                            onClick={answerCall}
+                            className="p-5 rounded-full bg-green-500 hover:bg-green-400 text-white shadow-[0_0_20px_theme(colors.green.500)] transition-transform hover:scale-110 flex flex-col items-center gap-1"
+                        >
+                            <Phone size={32} fill="currentColor" />
+                        </button>
+                        <button
+                            onClick={leaveCall}
+                            className="p-5 rounded-full bg-red-500 hover:bg-red-400 text-white shadow-[0_0_20px_theme(colors.red.500)] transition-transform hover:scale-110 flex flex-col items-center gap-1"
+                        >
+                            <PhoneOff size={32} />
+                        </button>
+                    </>
+                ) : (
+                    /* In Call Controls */
+                    <div className="flex items-center gap-4 p-4 bg-gray-900/60 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl">
+
+                        {/* Mute Toggle */}
+                        <button
+                            onClick={toggleMute}
+                            className={`p-4 rounded-full transition-all ${muted ? 'bg-white text-gray-900' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                            title={muted ? "Unmute" : "Mute"}
+                        >
+                            {muted ? <MicOff size={24} /> : <Mic size={24} />}
+                        </button>
+
+                        {/* Camera Toggle */}
+                        {isVideoCall && (
+                            <button
+                                onClick={toggleVideo}
+                                className={`p-4 rounded-full transition-all ${!videoEnabled ? 'bg-white text-gray-900' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                                title={!videoEnabled ? "Turn Camera On" : "Turn Camera Off"}
+                            >
+                                {videoEnabled ? <Video size={24} /> : <VideoOff size={24} />}
+                            </button>
+                        )}
+
+                        {/* End Call */}
+                        <button
+                            onClick={leaveCall}
+                            className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg transition-transform hover:scale-110 ml-4"
+                            title="End Call"
+                        >
+                            <PhoneOff size={28} />
+                        </button>
+                    </div>
                 )}
-                {callAccepted && !callEnded && (
-                    <audio playsInline ref={userVideo} autoPlay className="hidden" />
-                )}
-
-                {/* Controls */}
-                <div className="flex items-center gap-6">
-                    {!callAccepted && isIncoming ? (
-                        <>
-                            <button
-                                onClick={answerCall}
-                                className="p-4 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg transition-transform hover:scale-110"
-                            >
-                                <Phone size={32} />
-                            </button>
-                            <button
-                                onClick={leaveCall}
-                                className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg transition-transform hover:scale-110"
-                            >
-                                <PhoneOff size={32} />
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                onClick={toggleMute}
-                                className={`p-4 rounded-full ${muted ? 'bg-red-500/20 text-red-500' : 'bg-gray-700 text-white'} hover:bg-opacity-80 transition-all`}
-                            >
-                                {muted ? <MicOff size={24} /> : <Mic size={24} />}
-                            </button>
-                            <button
-                                onClick={leaveCall}
-                                className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg transition-transform hover:scale-110"
-                            >
-                                <PhoneOff size={32} />
-                            </button>
-                        </>
-                    )}
-                </div>
             </div>
         </div>
     );

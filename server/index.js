@@ -28,18 +28,16 @@ app.use(limiter);
 
 const cookieParser = require('cookie-parser');
 
-// ... (existing imports)
-
 // Middleware
 app.use(cookieParser());
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
-      // "https://localhost:5173",
+      "https://localhost:5173",
       "https://connectwithme-six.vercel.app",
-      // "https://10.212.251.124:5173"
+      "https://10.212.251.124:5173"
     ];
-    // Allow vercel preview deployments
+
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
@@ -68,7 +66,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-const expressServer = server.listen(PORT, () => {
+const expressServer = server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
@@ -76,13 +74,11 @@ const io = require('socket.io')(expressServer, {
   pingTimeout: 60000,
   cors: {
     origin: "*",
-    // credentials: true,
   },
 });
 
-// server/index.js
 
-let activeUsers = new Map(); // Map<UserId, Set<SocketId>>
+let activeUsers = new Map();
 
 io.on('connection', (socket) => {
   console.log('Connected to socket.io');
@@ -97,13 +93,11 @@ io.on('connection', (socket) => {
     activeUsers.get(userData._id).add(socket.id);
 
     io.emit("connected-users", Array.from(activeUsers.keys()));
-    // console.log("User Joined Room (Setup):", userData._id);
     socket.emit('connected');
   });
 
   socket.on('join chat', (room) => {
     socket.join(room);
-    // console.log('User Joined Chat Room: ' + room);
   });
 
   socket.on('typing', (room) => socket.in(room).emit('typing'));
@@ -144,41 +138,33 @@ io.on('connection', (socket) => {
 
   // WebRTC Signaling Events
   socket.on("callUser", (data) => {
-    // console.log(`[callUser] server received call from ${data.from} to ${data.userToCall}`);
-
-    // Check if room exists/has users (optional debug)
     const room = io.sockets.adapter.rooms.get(data.userToCall);
     if (!room || room.size === 0) {
-      // console.log(`[callUser] Warning: Target user ${data.userToCall} is not connected or not in their room.`);
     } else {
-      // console.log(`[callUser] Emitting to room ${data.userToCall}`);
     }
 
     socket.to(data.userToCall).emit("callUser", {
       signal: data.signalData,
       from: data.from,
       name: data.name,
-      pic: data.pic
+      pic: data.pic,
+      isVideo: data.isVideo
     });
   });
 
   socket.on("answerCall", (data) => {
-    // console.log(`[answerCall] to ${data.to}`);
     socket.to(data.to).emit("callAccepted", data.signal);
   });
 
   socket.on("ice-candidate", (data) => {
-    // console.log(`[ice-candidate] relaying to ${data.to}`);
     socket.to(data.to).emit("ice-candidate", data.candidate);
   });
 
   socket.on("endCall", (data) => {
-    // console.log(`[endCall] to ${data.to}`);
     socket.to(data.to).emit("endCall");
   });
 
   socket.on('disconnect', () => {
-    // console.log('USER DISCONNECTED');
     if (socket.userId && activeUsers.has(socket.userId)) {
       const userSockets = activeUsers.get(socket.userId);
       userSockets.delete(socket.id);
@@ -192,4 +178,4 @@ io.on('connection', (socket) => {
     }
   });
 });
- // force restart
+
