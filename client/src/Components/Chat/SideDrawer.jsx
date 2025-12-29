@@ -43,7 +43,7 @@ const SideDrawer = () => {
             try {
                 setLoading(true);
                 const config = { headers: {} };
-                const { data } = await axios.get(`/ api / user ? search = ${search} `);
+                const { data } = await axios.get(`/api/user?search=${search}`);
 
                 setLoading(false);
                 setSearchResult(data.slice(0, 5)); // Limit to 5
@@ -67,7 +67,7 @@ const SideDrawer = () => {
         try {
             setLoadingChat(true);
             const config = { headers: { 'Content-type': 'application/json' } };
-            const { data } = await axios.post(`/ api / chat`, { userId }, config);
+            const { data } = await axios.post(`/api/chat`, { userId }, config);
             if (!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
             setSelectedChat(data);
             setLoadingChat(false);

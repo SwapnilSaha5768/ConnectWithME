@@ -16,7 +16,7 @@ const Homepage = () => {
     const [activeTab, setActiveTab] = React.useState('login');
 
     return (
-        <div className='min-h-screen flex items-center justify-center p-4 relative overflow-hidden'>
+        <div className='min-h-screen flex items-center justify-center p-4 relative overflow-x-hidden'>
             {/* Decorative background elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-purple/20 rounded-full blur-[120px] animate-pulse-slow"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-neon-blue/20 rounded-full blur-[120px] animate-pulse-slow animation-delay-2000"></div>

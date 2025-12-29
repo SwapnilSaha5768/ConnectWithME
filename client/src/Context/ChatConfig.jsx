@@ -61,6 +61,12 @@ const ChatProvider = ({ children }) => {
             });
 
             return () => newSocket.close();
+        } else {
+            // Clear state when user logs out or is not authenticated
+            setChats([]);
+            setNotification([]);
+            setSelectedChat(null);
+            setActiveUsers([]);
         }
     }, [user]);
 
