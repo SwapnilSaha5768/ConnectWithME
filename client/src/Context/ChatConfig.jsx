@@ -52,7 +52,7 @@ const ChatProvider = ({ children }) => {
 
     useEffect(() => {
         if (user) {
-            const newSocket = io(ENDPOINT);
+            const newSocket = io(ENDPOINT, { withCredentials: true });
             setSocket(newSocket);
             newSocket.emit('setup', user);
 

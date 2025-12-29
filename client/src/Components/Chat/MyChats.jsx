@@ -12,7 +12,9 @@ const MyChats = ({ fetchAgain }) => {
 
     const fetchChats = async () => {
         try {
-            const config = {};
+            const config = {
+                withCredentials: true,
+            };
             const { data } = await axios.get('/api/chat', config);
             setChats(data);
         } catch (error) {

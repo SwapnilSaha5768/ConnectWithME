@@ -19,12 +19,12 @@ app.set('trust proxy', 1); // Trust first proxy (Render/Vercel)
 const server = http.createServer(app);
 
 // Middleware
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      "https://connectwithme-six.vercel.app",
-    ];
+const allowedOrigins = [
+  "https://connectwithme-six.vercel.app",
+];
 
+const corsOptions = {
+  origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
@@ -33,7 +33,9 @@ app.use(cors({
     }
   },
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Security Middleware
 app.use(helmet({
@@ -77,7 +79,8 @@ const expressServer = server.listen(PORT, '0.0.0.0', () => {
 const io = require('socket.io')(expressServer, {
   pingTimeout: 60000,
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
+    credentials: true,
   },
 });
 
