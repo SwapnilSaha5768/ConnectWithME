@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { ChatState } from '../../Context/ChatConfig';
+import { toast } from 'react-toastify';
 
 const GroupChatModal = ({ children }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -26,14 +27,14 @@ const GroupChatModal = ({ children }) => {
             setLoading(false);
             setSearchResult(data);
         } catch (error) {
-            alert("Failed to load search results");
+            toast.error("Failed to Load the Search Results");
             setLoading(false);
         }
     };
 
     const handleSubmit = async () => {
-        if (!groupChatName || !selectedUsers) {
-            alert("Please fill all the fields");
+        if (!groupChatName || selectedUsers.length < 2) {
+            toast.warning("Please provide a chat name and select at least 2 users.");
             return;
         }
 
@@ -49,15 +50,15 @@ const GroupChatModal = ({ children }) => {
 
             setChats([data, ...chats]);
             setIsOpen(false);
-            alert("New Group Chat Created!");
+            toast.success("New Group Chat Created!");
         } catch (error) {
-            alert("Failed to create the chat!");
+            toast.error("Failed to Create the Chat!");
         }
     };
 
     const handleGroup = (userToAdd) => {
         if (selectedUsers.includes(userToAdd)) {
-            alert("User already added");
+            toast.warning("User already added");
             return;
         }
         setSelectedUsers([...selectedUsers, userToAdd]);
@@ -70,66 +71,85 @@ const GroupChatModal = ({ children }) => {
 
     return (
         <>
-            <span onClick={() => setIsOpen(true)}>{children}</span>
+            <span onClick={() => setIsOpen(true)} className="cursor-pointer hover:opacity-80 transition-opacity">{children}</span>
 
             {isOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                    <div className="flex items-center justify-center min-h-screen px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsOpen(false)}></div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 text-white">
+                    <div
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+                        aria-hidden="true"
+                        onClick={() => setIsOpen(false)}
+                    ></div>
 
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                    <div className="relative inline-block align-bottom bg-[#1a1a1a] border border-white/10 rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full z-10">
+                        <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                            <h3
+                                className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-blue via-white to-neon-purple tracking-wider mb-6 text-center"
+                                style={{ fontFamily: '"Roboto", sans-serif' }}
+                            >
+                                Create Group Chat
+                            </h3>
 
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                        <h3 className="text-xl leading-6 font-bold text-gray-900" id="modal-title">Create Group Chat</h3>
-                                        <div className="mt-4 space-y-4">
-                                            <input
-                                                placeholder='Chat Name'
-                                                className="w-full border p-2 rounded-md mb-3"
-                                                onChange={(e) => setGroupChatName(e.target.value)}
-                                            />
-                                            <input
-                                                placeholder='Add Users eg: John, Jane'
-                                                className="w-full border p-2 rounded-md mb-1"
-                                                onChange={(e) => handleSearch(e.target.value)}
-                                            />
+                            <div className="space-y-4">
+                                <input
+                                    placeholder='Chat Name'
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all"
+                                    onChange={(e) => setGroupChatName(e.target.value)}
+                                />
+                                <input
+                                    placeholder='Search Users'
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple focus:ring-1 focus:ring-neon-purple transition-all"
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                />
 
-                                            {/* Selected Users Chips */}
-                                            <div className="flex flex-wrap gap-2">
-                                                {selectedUsers.map((u) => (
-                                                    <div key={u._id} className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-sm flex items-center">
-                                                        {u.name}
-                                                        <span onClick={() => handleDelete(u)} className="ml-2 cursor-pointer font-bold">x</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Render Search Results */}
-                                            {loading ? <div>Loading...</div> : (
-                                                searchResult?.slice(0, 4).map(user => (
-                                                    <div key={user._id} onClick={() => handleGroup(user)} className="cursor-pointer hover:bg-gray-100 p-2 rounded-md flex items-center space-x-2">
-                                                        <img src={user.pic} alt={user.name} className="h-8 w-8 rounded-full" />
-                                                        <div>
-                                                            <p className='font-semibold'>{user.name}</p>
-                                                            <p className='text-xs text-gray-500'>{user.email}</p>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
+                                {/* Selected Users Chips */}
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedUsers.map((u) => (
+                                        <div key={u._id} className="bg-neon-purple/20 border border-neon-purple/30 text-neon-purple px-3 py-1 rounded-full text-sm flex items-center">
+                                            {u.name}
+                                            <span onClick={() => handleDelete(u)} className="ml-2 cursor-pointer hover:text-white transition-colors">x</span>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
+
+                                {/* Render Search Results */}
+                                {loading ? (
+                                    <div className="text-center text-neon-blue animate-pulse py-2">Loading...</div>
+                                ) : (
+                                    <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                        {searchResult?.slice(0, 4).map(user => (
+                                            <div
+                                                key={user._id}
+                                                onClick={() => handleGroup(user)}
+                                                className="cursor-pointer hover:bg-white/10 p-2 rounded-lg flex items-center space-x-3 transition-all mb-1 group"
+                                            >
+                                                <img src={user.pic} alt={user.name} className="h-10 w-10 rounded-full border border-white/10 group-hover:border-neon-blue/50" />
+                                                <div>
+                                                    <p className='font-semibold text-gray-200 group-hover:text-white'>{user.name}</p>
+                                                    <p className='text-xs text-gray-500 group-hover:text-gray-400'>{user.email}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                <button onClick={handleSubmit} type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                                    Create Chat
-                                </button>
-                                <button onClick={() => setIsOpen(false)} type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                                    Cancel
-                                </button>
-                            </div>
+                        </div>
+
+                        <div className="bg-white/5 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-white/10">
+                            <button
+                                onClick={handleSubmit}
+                                type="button"
+                                className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-neon-blue text-base font-bold text-black hover:bg-cyan-400 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm transition-all"
+                            >
+                                Create Chat
+                            </button>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                type="button"
+                                className="mt-3 w-full inline-flex justify-center rounded-lg border border-white/10 shadow-sm px-4 py-2 bg-white/5 text-base font-medium text-gray-300 hover:bg-white/10 hover:text-white focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-all"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>

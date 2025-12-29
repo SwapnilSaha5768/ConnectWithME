@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import ImageCropper from '../Miscellaneous/ImageCropper';
 import { ChatState } from '../../Context/ChatConfig';
 
@@ -62,6 +63,8 @@ const Signup = () => {
                 setLoading(false);
             })
             .catch((err) => {
+                console.log(err);
+                toast.error("Failed to upload image.");
                 setLoading(false);
             });
     };
@@ -69,13 +72,19 @@ const Signup = () => {
     const submitHandler = async (e) => {
         e.preventDefault();
         setLoading(true);
+
         if (!name || !email || !password || !confirmpassword) {
-            alert('Please fill all the fields');
+            toast.warning('Please fill all the fields');
+            setLoading(false);
+            return;
+        }
+        if (!pic) { // Assuming 'pic' is the final uploaded image URL
+            toast.warning('Please select an image');
             setLoading(false);
             return;
         }
         if (password !== confirmpassword) {
-            alert('Passwords do not match');
+            toast.warning('Passwords do not match');
             setLoading(false);
             return;
         }
@@ -83,11 +92,17 @@ const Signup = () => {
         try {
             const config = { headers: { 'Content-type': 'application/json' } };
             await axios.post('/api/user/register', { name, email, password, pic }, config);
-            alert('OTP sent to ' + email);
-            setOtpSent(true);
+            toast.success('Registration successful! Please check your email for verification.');
+
+            setShowOtpInput(true);
             setLoading(false);
         } catch (error) {
-            alert('Error Occured: ' + (error.response && error.response.data.message ? error.response.data.message : error.message));
+            toast.error(
+                'Error Occured: ' +
+                (error.response && error.response.data.message
+                    ? error.response.data.message
+                    : error.message)
+            );
             setLoading(false);
         }
     };
@@ -96,7 +111,7 @@ const Signup = () => {
         e.preventDefault();
         setLoading(true);
         if (!otp) {
-            alert("Please enter OTP");
+            toast.warning("Please enter OTP");
             setLoading(false);
             return;
         }
@@ -104,12 +119,13 @@ const Signup = () => {
         try {
             const config = { headers: { 'Content-type': 'application/json' } };
             const { data } = await axios.post('/api/user/verify-otp', { email, otp }, config);
-            // alert('Verification Successful!');
+            localStorage.setItem('userInfo', JSON.stringify(data));
             setUser(data);
             setLoading(false);
+            toast.success('Registration Successful');
             navigate('/chats');
         } catch (error) {
-            alert('Verification Failed: ' + (error.response && error.response.data.message ? error.response.data.message : error.message));
+            toast.error('Verification Failed: ' + (error.response && error.response.data.message ? error.response.data.message : error.message));
             setLoading(false);
         }
     }

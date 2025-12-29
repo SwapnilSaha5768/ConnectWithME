@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChatState } from '../Context/ChatConfig';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { User, Mail, Lock, Camera, Save, ArrowLeft, Loader2 } from 'lucide-react';
 
 const ProfilePage = () => {
@@ -26,7 +27,7 @@ const ProfilePage = () => {
     const postDetails = (pics) => {
         setLoading(true);
         if (pics === undefined) {
-            alert("Please Select an Image!");
+            toast.warning("Please Select an Image!");
             setLoading(false);
             return;
         }
@@ -39,7 +40,7 @@ const ProfilePage = () => {
                 setLoading(false);
             };
         } else {
-            alert("Please Select an Image (jpeg/png)");
+            toast.warning("Please Select an Image (jpeg/png)");
             setLoading(false);
         }
     };
@@ -49,7 +50,7 @@ const ProfilePage = () => {
         setLoading(true);
 
         if (password && password !== confirmPassword) {
-            alert("Passwords do not match");
+            toast.warning("Passwords do not match");
             setLoading(false);
             return;
         }
@@ -71,12 +72,12 @@ const ProfilePage = () => {
                 config
             );
 
-            alert("Profile Updated Successfully");
+            toast.success("Profile Updated Successfully");
             setUser(data);
             setUser(data);
             setLoading(false);
         } catch (error) {
-            alert(error.response?.data?.message || "Something went wrong");
+            toast.error(error.response?.data?.message || "Something went wrong");
             setLoading(false);
         }
     };

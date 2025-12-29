@@ -104,6 +104,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
             name: user.name,
             email: user.email,
             pic: user.pic,
+            blockedUsers: user.blockedUsers,
             message: "User already verified"
         });
         return;
@@ -132,6 +133,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
             name: user.name,
             email: user.email,
             pic: user.pic,
+            blockedUsers: user.blockedUsers,
             message: "Email verified successfully"
         });
     } else {
@@ -262,6 +264,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
             name: updatedUser.name,
             email: updatedUser.email,
             pic: updatedUser.pic,
+            blockedUsers: updatedUser.blockedUsers,
         });
     } else {
         res.status(404);
@@ -379,6 +382,72 @@ const logoutUser = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Logged out successfully' });
 });
 
+// @desc    Block a user
+// @route   PUT /api/user/block
+// @access  Protected
+const blockUser = asyncHandler(async (req, res) => {
+    const { userId } = req.body;
+
+    // Check if trying to block self
+    if (userId.toString() === req.user._id.toString()) {
+        res.status(400);
+        throw new Error("You cannot block yourself");
+    }
+
+    const user = await User.findById(req.user._id);
+
+    // Check if already blocked
+    if (user.blockedUsers.includes(userId)) {
+        res.status(400);
+        throw new Error("User already blocked");
+    }
+
+    user.blockedUsers.push(userId);
+    await user.save();
+
+    res.status(200).json({ message: "User blocked successfully" });
+});
+
+// @desc    Unblock a user
+// @route   PUT /api/user/unblock
+// @access  Protected
+const unblockUser = asyncHandler(async (req, res) => {
+    const { userId } = req.body;
+    const user = await User.findById(req.user._id);
+
+    // Check if not blocked
+    if (!user.blockedUsers.includes(userId)) {
+        res.status(400);
+        throw new Error("User is not blocked");
+    }
+
+    user.blockedUsers = user.blockedUsers.filter(id => id.toString() !== userId.toString());
+    await user.save();
+
+    res.status(200).json({ message: "User unblocked successfully" });
+});
+
+// @desc    Check block status
+// @route   GET /api/user/check-block/:userId
+// @access  Protected
+const checkBlockStatus = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    // Check if I blocked them
+    const me = await User.findById(req.user._id);
+    const isBlocked = me.blockedUsers.includes(userId);
+
+    // Check if they blocked me
+    const otherUser = await User.findById(userId);
+    if (!otherUser) {
+        res.status(404);
+        throw new Error("User not found");
+    }
+    const isBlockedBy = otherUser.blockedUsers.includes(req.user._id);
+
+    res.json({ isBlocked, isBlockedBy });
+});
+
 // @desc    Get current user
 // @route   GET /api/user/me
 // @access  Protected
@@ -389,10 +458,11 @@ const getMe = asyncHandler(async (req, res) => {
             name: req.user.name,
             email: req.user.email,
             pic: req.user.pic,
+            blockedUsers: req.user.blockedUsers,
         });
     } else {
         res.status(200).json(null);
     }
 });
 
-module.exports = { registerUser, loginUser, allUsers, verifyOTP, updateUserProfile, forgotPassword, resetPassword, logoutUser, getMe };
+module.exports = { registerUser, loginUser, allUsers, verifyOTP, updateUserProfile, forgotPassword, resetPassword, logoutUser, getMe, blockUser, unblockUser, checkBlockStatus };

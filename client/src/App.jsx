@@ -5,6 +5,8 @@ import ChatPage from './Pages/ChatPage';
 import ProfilePage from './Pages/ProfilePage';
 import ResetPassword from './Components/Auth/ResetPassword';
 import './index.css';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 import ChatProvider from './Context/ChatConfig';
 
@@ -20,6 +22,7 @@ function App() {
                         <Route path="/resetpassword" element={<ResetPassword />} />
                     </Routes>
                 </div>
+                <ToastContainer theme="dark" position="bottom-right" />
             </ChatProvider>
         </BrowserRouter>
     );

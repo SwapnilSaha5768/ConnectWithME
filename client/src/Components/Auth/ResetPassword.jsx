@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { ChatState } from '../../Context/ChatConfig';
 
@@ -32,13 +33,14 @@ const ResetPassword = () => {
             // On success
             setStep(2);
             setLoading(false);
-            alert("OTP sent to your email!");
+            toast.success(
+                data.message,
+            );
         } catch (error) {
-            alert(
-                'Error: ' +
-                (error.response && error.response.data.message
+            toast.error(
+                error.response && error.response.data.message
                     ? error.response.data.message
-                    : error.message)
+                    : error.message
             );
             setLoading(false);
         }
@@ -49,13 +51,13 @@ const ResetPassword = () => {
         setLoading(true);
 
         if (password !== confirmPassword) {
-            alert("Passwords do not match");
+            toast.warning("Passwords do not match");
             setLoading(false);
             return;
         }
 
         if (!otp) {
-            alert("Please enter OTP");
+            toast.warning("Please enter OTP");
             setLoading(false);
             return;
         }
@@ -71,16 +73,17 @@ const ResetPassword = () => {
                 config
             );
 
-            alert('Password Reset Successfully! Logging you in...');
+            toast.success(
+                data.message,
+            );
             setUser(data);
             setLoading(false);
             navigate('/chats');
         } catch (error) {
-            alert(
-                'Error: ' +
-                (error.response && error.response.data.message
+            toast.error(
+                error.response && error.response.data.message
                     ? error.response.data.message
-                    : error.message)
+                    : error.message
             );
             setLoading(false);
         }

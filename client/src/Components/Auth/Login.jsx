@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { ChatState } from '../../Context/ChatConfig';
 
 const Login = () => {
@@ -16,7 +17,7 @@ const Login = () => {
         e.preventDefault();
         setLoading(true);
         if (!email || !password) {
-            alert('Please fill all the fields');
+            toast.warning('Please fill all the fields');
             setLoading(false);
             return;
         }
@@ -34,16 +35,17 @@ const Login = () => {
 
             setUser(data);
             setLoading(false);
+            toast.success('Login Successful');
             navigate('/chats');
         } catch (error) {
             if (error.response && error.response.status === 403 && error.response.data.isVerified === false) {
-                alert(error.response.data.message);
+                toast.error(error.response.data.message);
                 setShowOtpInput(true);
                 setLoading(false);
                 return;
             }
 
-            alert(
+            toast.error(
                 'Error Occured: ' +
                 (error.response && error.response.data.message
                     ? error.response.data.message
@@ -57,7 +59,7 @@ const Login = () => {
         e.preventDefault();
         setLoading(true);
         if (!otp) {
-            alert("Please enter OTP");
+            toast.warning("Please enter OTP");
             setLoading(false);
             return;
         }
@@ -69,8 +71,9 @@ const Login = () => {
             setUser(data);
             setLoading(false);
             navigate('/chats');
+            toast.success('Login Successful');
         } catch (error) {
-            alert('Verification Failed: ' + (error.response && error.response.data.message ? error.response.data.message : error.message));
+            toast.error('Verification Failed: ' + (error.response && error.response.data.message ? error.response.data.message : error.message));
             setLoading(false);
         }
     };

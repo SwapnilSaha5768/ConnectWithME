@@ -54,7 +54,10 @@ const accessChat = asyncHandler(async (req, res) => {
 
 const fetchChats = asyncHandler(async (req, res) => {
     try {
-        Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
+        Chat.find({
+            users: { $elemMatch: { $eq: req.user._id } },
+            hiddenFor: { $ne: req.user._id }
+        })
             .populate('users', '-password')
             .populate('groupAdmin', '-password')
             .populate('latestMessage')
@@ -184,6 +187,45 @@ const removeFromGroup = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Delete Chat (For Me or Everyone)
+// @route   DELETE /api/chat/:chatId
+// @access  Protected
+const deleteChat = asyncHandler(async (req, res) => {
+    const { chatId } = req.params;
+    const { type } = req.query; // 'me' or 'everyone'
+
+    if (type === 'everyone') {
+        const chat = await Chat.findById(chatId);
+        if (!chat) {
+            res.status(404);
+            throw new Error('Chat Not Found');
+        }
+
+        // Delete all messages in the chat
+        const Message = require('../models/Message');
+        await Message.deleteMany({ chat: chatId });
+
+        // Delete the chat
+        await Chat.findByIdAndDelete(chatId);
+
+        res.json({ message: 'Chat deleted for everyone' });
+    } else {
+        // Delete for me (Hide it)
+        const chat = await Chat.findByIdAndUpdate(
+            chatId,
+            {
+                $addToSet: { hiddenFor: req.user._id }
+            },
+            { new: true }
+        );
+        if (!chat) {
+            res.status(404);
+            throw new Error('Chat Not Found');
+        }
+        res.json({ message: 'Chat hidden for you' });
+    }
+});
+
 module.exports = {
     accessChat,
     fetchChats,
@@ -191,4 +233,5 @@ module.exports = {
     renameGroup,
     addToGroup,
     removeFromGroup,
+    deleteChat,
 };

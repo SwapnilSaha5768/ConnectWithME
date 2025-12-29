@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ChatState } from '../../Context/ChatConfig';
 import axios from 'axios';
 import io from 'socket.io-client';
+import { toast } from 'react-toastify';
 import ScrollableChat from './ScrollableChat';
 import UpdateGroupChatModal from '../Miscellaneous/UpdateGroupChatModal';
 import ProfileModal from '../Miscellaneous/ProfileModal';
@@ -31,11 +32,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
     const touchStart = useRef(null);
     const touchEnd = useRef(null);
 
+    // Block state
+    const [isBlocked, setIsBlocked] = useState(false);
+    const [isBlockedBy, setIsBlockedBy] = useState(false);
+
     const { user, selectedChat, setSelectedChat, notification, setNotification, activeUsers } = ChatState();
 
     const requestPermission = async () => {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            return alert("Your browser does not support Audio Recording.");
+            return toast.warning("Your browser does not support Audio Recording.");
         }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -45,9 +50,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
         } catch (err) {
             console.error("Mic error:", err);
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                alert("Microphone denied. Please Allow permissions in your browser settings.");
+                toast.warning("Microphone denied. Please Allow permissions in your browser settings.");
             } else {
-                alert(`Error accessing microphone: ${err.message}`);
+                toast.error(`Error accessing microphone: ${err.message}`);
             }
         }
     };
@@ -57,7 +62,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
         if (!file) return;
 
         if (file.type !== 'image/jpeg' && file.type !== 'image/png' && file.type !== 'image/jpg') {
-            return alert("Please upload a standard image (JPEG/PNG)");
+            return toast.warning("Please upload a standard image (JPEG/PNG)");
         }
 
         try {
@@ -87,12 +92,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                 setMessages((prev) => [...prev, msgData]);
                 setShowAttach(false);
             } else {
-                alert("Image upload failed");
+                toast.error("Image upload failed");
             }
             setImgLoading(false);
         } catch (error) {
             console.error(error);
-            alert("Error uploading image");
+            toast.error("Error uploading image");
             setImgLoading(false);
         }
     };
@@ -128,7 +133,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                         setMessages((prev) => [...prev, data]);
                         setShowAttach(false);
                     } catch (error) {
-                        alert("Failed to send audio");
+                        toast.error("Failed to send audio");
                     }
                 };
             };
@@ -137,7 +142,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
             setIsRecording(true);
         } catch (err) {
             console.error("Mic error:", err);
-            alert(`Mic Error: ${err.message}`);
+            toast.error(`Mic Error: ${err.message}`);
         }
     };
 
@@ -211,14 +216,38 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
             setMessages(data);
             setLoading(false);
             if (socket) socket.emit('join chat', selectedChat._id);
+
+            // Mark messages as read
+            await axios.put('/api/message/read', { chatId: selectedChat._id }, config);
+            if (socket) socket.emit('read message', { chatId: selectedChat._id, userId: user._id });
+
         } catch (error) {
-            alert(`Failed to load messages: ${error.message}`);
+            toast.error(`Failed to load messages: ${error.message}`);
             setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchMessages();
+
+        const checkBlock = async () => {
+            if (selectedChat && !selectedChat.isGroupChat) {
+                try {
+                    const friend = getSenderFull(user, selectedChat.users);
+                    const config = { headers: { Authorization: `Bearer ${user.token}` } };
+                    const { data } = await axios.get(`/api/user/check-block/${friend._id}`, config);
+                    setIsBlocked(data.isBlocked);
+                    setIsBlockedBy(data.isBlockedBy);
+                } catch (error) {
+                    console.error("Failed to check block status");
+                }
+            } else {
+                setIsBlocked(false);
+                setIsBlockedBy(false);
+            }
+        };
+        checkBlock();
+
         selectedChatCompare = selectedChat;
     }, [selectedChat]);
 
@@ -229,6 +258,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                 // Notification logic handled in ChatPage
             } else {
                 setMessages([...messages, newMessageRecieved]);
+                // If chat is open, mark as read immediately
+                if (selectedChatCompare._id === newMessageRecieved.chat._id) {
+                    axios.put('/api/message/read', { chatId: selectedChatCompare._id }, {
+                        headers: { Authorization: `Bearer ${user.token}` } // Ensure auth
+                    }).catch(err => console.error(err));
+                    socket.emit('read message', { chatId: selectedChatCompare._id, userId: user._id });
+                }
             }
         });
 
@@ -247,10 +283,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
             }
         });
 
+        socket.on('message read', ({ chatId, userId }) => {
+            if (selectedChatCompare && selectedChatCompare._id === chatId) {
+                setMessages(prevMessages => prevMessages.map(msg => {
+                    if (!msg.readBy.includes(userId)) {
+                        return { ...msg, readBy: [...msg.readBy, userId] };
+                    }
+                    return msg;
+                }));
+            }
+        });
+
         return () => { // Cleanup listeners to prevent duplicates
             socket.off('message recieved');
             socket.off('message deleted');
             socket.off('chat cleared');
+            socket.off('message read');
         };
     }, [socket, messages]);
 
@@ -264,7 +312,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                 if (socket) socket.emit('new message', data);
                 setMessages([...messages, data]);
             } catch (error) {
-                alert("Failed to send message");
+                toast.error("Failed to send message");
             }
         }
     };
@@ -326,32 +374,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
 
                                 <div className="flex items-center gap-2">
                                     <button
-                                        className="p-3 rounded-full bg-white/5 hover:bg-neon-blue/20 text-neon-blue border border-white/10 transition-all group"
+                                        className={`p-3 rounded-full transition-all group border ${isBlocked || isBlockedBy
+                                            ? 'bg-gray-500/10 text-gray-500 border-gray-500/10 cursor-not-allowed'
+                                            : 'bg-white/5 hover:bg-neon-blue/20 text-neon-blue border-white/10'}`}
                                         onClick={() => {
+                                            if (isBlocked || isBlockedBy) return;
                                             const friend = getSenderFull(user, selectedChat.users);
                                             startCall(friend._id, friend.name, friend.pic);
                                         }}
                                         title="Audio Call"
+                                        disabled={isBlocked || isBlockedBy}
                                     >
-                                        <Phone size={20} className="group-hover:scale-110 transition-transform" />
-                                    </button>
-                                    <button
-                                        className="p-3 rounded-full bg-white/5 hover:bg-red-500/20 text-red-500 border border-white/10 transition-all group"
-                                        onClick={async () => {
-                                            if (window.confirm("Are you sure you want to clear the entire chat history? This cannot be undone.")) {
-                                                try {
-                                                    const config = {};
-                                                    await axios.delete(`/api/message/clear/${selectedChat._id}`, config);
-                                                    if (socket) socket.emit('chat cleared', selectedChat._id);
-                                                    setMessages([]);
-                                                } catch (error) {
-                                                    alert("Failed to clear chat");
-                                                }
-                                            }
-                                        }}
-                                        title="Clear Chat History"
-                                    >
-                                        <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                                        <Phone size={20} className={!(isBlocked || isBlockedBy) ? "group-hover:scale-110 transition-transform" : ""} />
                                     </button>
                                 </div>
                             </>
@@ -375,119 +409,129 @@ const SingleChat = ({ fetchAgain, setFetchAgain, socket, socketConnected, startC
                             </div>
                         )}
 
-                        <div className="mt-3 relative flex items-center gap-2" onKeyDown={sendMessage}>
-                            {isTyping && <div className='absolute -top-6 left-12 text-xs text-neon-pink italic animate-pulse'>Typing...</div>}
-
-                            <div className="relative flex items-center">
-                                <AnimatePresence>
-                                    {showAttach && (
-                                        <motion.div
-                                            initial={{ opacity: 0, x: -20, scale: 0.8 }}
-                                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                                            exit={{ opacity: 0, x: -20, scale: 0.8 }}
-                                            className="flex items-center gap-2 absolute bottom-12 left-0 bg-black/50 backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-xl"
-                                        >
-                                            {/* Location Button */}
-                                            <button
-                                                onClick={() => {
-                                                    if (!navigator.geolocation) return alert('Geolocation is not supported by your browser');
-                                                    navigator.geolocation.getCurrentPosition(async (position) => {
-                                                        const { latitude, longitude } = position.coords;
-                                                        const locationString = `${latitude},${longitude}`;
-
-                                                        try {
-                                                            const config = { headers: { 'Content-type': 'application/json' } };
-                                                            const { data } = await axios.post('/api/message', {
-                                                                content: locationString,
-                                                                chatId: selectedChat._id,
-                                                                type: 'location'
-                                                            }, config);
-
-                                                            if (socket) socket.emit('new message', data);
-                                                            setMessages((prev) => [...prev, data]);
-                                                            setShowAttach(false); // Close menu after sending
-                                                        } catch (error) {
-                                                            alert(`Failed to send location: ${error.message}`);
-                                                        }
-                                                    });
-                                                }}
-                                                className="p-3 rounded-full bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue transition-all border border-neon-blue/20 group relative"
-                                                title="Send Location"
-                                            >
-                                                <MapPin size={20} />
-                                            </button>
-
-                                            {/* Image Button */}
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                style={{ display: 'none' }}
-                                                ref={fileInputRef}
-                                                onChange={handleFileUpload}
-                                            />
-                                            <button
-                                                onClick={() => fileInputRef.current.click()}
-                                                className="p-3 rounded-full bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-all border border-green-500/20"
-                                                title="Send Image"
-                                                disabled={imgLoading}
-                                            >
-                                                {imgLoading ? <div className='w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin' /> : <ImageIcon size={20} />}
-                                            </button>
-
-                                            {/* Audio Button */}
-                                            {!permissionGranted ? (
-                                                <button
-                                                    onClick={requestPermission}
-                                                    onTouchEnd={(e) => {
-                                                        e.preventDefault();
-                                                        requestPermission();
-                                                    }}
-                                                    className="p-3 rounded-full bg-neon-pink/10 hover:bg-neon-pink/20 text-neon-pink transition-all border border-neon-pink/20 relative z-50"
-                                                    title="Tap to Enable Microphone"
-                                                >
-                                                    <Mic size={20} />
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onTouchStart={(e) => {
-                                                        e.preventDefault();
-                                                        if (!loading && !isRecording) startRecording();
-                                                    }}
-                                                    onTouchEnd={(e) => {
-                                                        e.preventDefault();
-                                                        if (isRecording) stopRecording();
-                                                    }}
-                                                    onClick={() => {
-                                                        if (isRecording) stopRecording();
-                                                    }}
-                                                    className={`p-3 rounded-full transition-all border ${isRecording
-                                                        ? 'bg-red-500/20 text-red-500 border-red-500 animate-pulse'
-                                                        : 'bg-neon-pink/10 hover:bg-neon-pink/20 text-neon-pink border-neon-pink/20'
-                                                        }`}
-                                                    title={isRecording ? "Release/Click to Send" : "Hold (Mobile) / Click (PC) to Record"}
-                                                >
-                                                    {isRecording ? <div className='w-5 h-5 bg-red-500 rounded-sm animate-pulse' /> : <Mic size={20} />}
-                                                </button>
-                                            )}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-
-                                <button
-                                    onClick={() => setShowAttach(!showAttach)}
-                                    className={`p-3 rounded-full transition-all duration-300 border border-white/10 ${showAttach ? 'bg-white/20 rotate-45 text-red-400' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
-                                >
-                                    <Plus size={24} />
-                                </button>
+                        {isBlocked || isBlockedBy ? (
+                            <div className="mt-3 w-full p-4 bg-white/5 border border-white/10 rounded-xl text-center backdrop-blur-sm">
+                                <p className="text-gray-400 font-medium">
+                                    {isBlockedBy
+                                        ? "You have been blocked by the user."
+                                        : "You have blocked this user. Unblock to send messages."}
+                                </p>
                             </div>
+                        ) : (
+                            <div className="mt-3 relative flex items-center gap-2" onKeyDown={sendMessage}>
+                                {isTyping && <div className='absolute -top-6 left-12 text-xs text-neon-pink italic animate-pulse'>Typing...</div>}
 
-                            <input
-                                className="bg-white/5 border border-white/10 w-full p-3 px-5 rounded-full focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue text-white placeholder-gray-500 transition-all backdrop-blur-sm"
-                                placeholder="Enter a message.."
-                                onChange={typingHandler}
-                                value={newMessage}
-                            />
-                        </div>
+                                <div className="relative flex items-center">
+                                    <AnimatePresence>
+                                        {showAttach && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20, scale: 0.8 }}
+                                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                                exit={{ opacity: 0, x: -20, scale: 0.8 }}
+                                                className="flex items-center gap-2 absolute bottom-12 left-0 bg-black/50 backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-xl"
+                                            >
+                                                {/* Location Button */}
+                                                <button
+                                                    onClick={() => {
+                                                        if (!navigator.geolocation) return toast.warning('Geolocation is not supported by your browser');
+                                                        navigator.geolocation.getCurrentPosition(async (position) => {
+                                                            const { latitude, longitude } = position.coords;
+                                                            const locationString = `${latitude},${longitude}`;
+
+                                                            try {
+                                                                const config = { headers: { 'Content-type': 'application/json' } };
+                                                                const { data } = await axios.post('/api/message', {
+                                                                    content: locationString,
+                                                                    chatId: selectedChat._id,
+                                                                    type: 'location'
+                                                                }, config);
+
+                                                                if (socket) socket.emit('new message', data);
+                                                                setMessages((prev) => [...prev, data]);
+                                                                setShowAttach(false); // Close menu after sending
+                                                            } catch (error) {
+                                                                toast.error(`Failed to send location: ${error.message}`);
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="p-3 rounded-full bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue transition-all border border-neon-blue/20 group relative"
+                                                    title="Send Location"
+                                                >
+                                                    <MapPin size={20} />
+                                                </button>
+
+                                                {/* Image Button */}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    style={{ display: 'none' }}
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                />
+                                                <button
+                                                    onClick={() => fileInputRef.current.click()}
+                                                    className="p-3 rounded-full bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-all border border-green-500/20"
+                                                    title="Send Image"
+                                                    disabled={imgLoading}
+                                                >
+                                                    {imgLoading ? <div className='w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin' /> : <ImageIcon size={20} />}
+                                                </button>
+
+                                                {/* Audio Button */}
+                                                {!permissionGranted ? (
+                                                    <button
+                                                        onClick={requestPermission}
+                                                        onTouchEnd={(e) => {
+                                                            e.preventDefault();
+                                                            requestPermission();
+                                                        }}
+                                                        className="p-3 rounded-full bg-neon-pink/10 hover:bg-neon-pink/20 text-neon-pink transition-all border border-neon-pink/20 relative z-50"
+                                                        title="Tap to Enable Microphone"
+                                                    >
+                                                        <Mic size={20} />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onTouchStart={(e) => {
+                                                            e.preventDefault();
+                                                            if (!loading && !isRecording) startRecording();
+                                                        }}
+                                                        onTouchEnd={(e) => {
+                                                            e.preventDefault();
+                                                            if (isRecording) stopRecording();
+                                                        }}
+                                                        onClick={() => {
+                                                            if (isRecording) stopRecording();
+                                                        }}
+                                                        className={`p-3 rounded-full transition-all border ${isRecording
+                                                            ? 'bg-red-500/20 text-red-500 border-red-500 animate-pulse'
+                                                            : 'bg-neon-pink/10 hover:bg-neon-pink/20 text-neon-pink border-neon-pink/20'
+                                                            }`}
+                                                        title={isRecording ? "Release/Click to Send" : "Hold (Mobile) / Click (PC) to Record"}
+                                                    >
+                                                        {isRecording ? <div className='w-5 h-5 bg-red-500 rounded-sm animate-pulse' /> : <Mic size={20} />}
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    <button
+                                        onClick={() => setShowAttach(!showAttach)}
+                                        className={`p-3 rounded-full transition-all duration-300 border border-white/10 ${showAttach ? 'bg-white/20 rotate-45 text-red-400' : 'bg-white/5 hover:bg-white/10 text-gray-300'}`}
+                                    >
+                                        <Plus size={24} />
+                                    </button>
+                                </div>
+
+                                <input
+                                    className="bg-white/5 border border-white/10 w-full p-3 px-5 rounded-full focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue text-white placeholder-gray-500 transition-all backdrop-blur-sm"
+                                    placeholder="Enter a message.."
+                                    onChange={typingHandler}
+                                    value={newMessage}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div >
             ) : (

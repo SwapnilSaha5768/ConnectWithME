@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from "react-toastify";
 import { ChatState } from '../../Context/ChatConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileModal from '../Miscellaneous/ProfileModal';
@@ -32,20 +33,33 @@ const SideDrawer = () => {
         }
     };
 
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (!search) {
+                setSearchResult([]);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const config = { headers: {} };
+                const { data } = await axios.get(`/ api / user ? search = ${search} `);
+
+                setLoading(false);
+                setSearchResult(data.slice(0, 5)); // Limit to 5
+            } catch (error) {
+                setLoading(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [search]);
+
+
     const handleSearch = async () => {
         if (!search) {
-            alert('Please enter something in search');
+            toast.warning("Please Enter something in search");
             return;
-        }
-        try {
-            setLoading(true);
-            const config = { headers: {} };
-            const { data } = await axios.get(`/api/user?search=${search}`, config);
-            setLoading(false);
-            setSearchResult(data);
-        } catch (error) {
-            alert('Error Occured!');
-            setLoading(false);
         }
     };
 
@@ -53,13 +67,13 @@ const SideDrawer = () => {
         try {
             setLoadingChat(true);
             const config = { headers: { 'Content-type': 'application/json' } };
-            const { data } = await axios.post(`/api/chat`, { userId }, config);
+            const { data } = await axios.post(`/ api / chat`, { userId }, config);
             if (!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
             setSelectedChat(data);
             setLoadingChat(false);
             setDrawerOpen(false);
         } catch (error) {
-            alert('Error fetching the chat');
+            toast.error("Error Occured! Failed to Load the Search Results");
             setLoadingChat(false);
         }
     };
@@ -77,7 +91,7 @@ const SideDrawer = () => {
     return (
         <>
             <div className='flex justify-between items-center bg-white/5 backdrop-blur-md w-full p-3 border-b border-white/10 sticky top-0 z-20'>
-                <h2 className='text-2xl md:text-3xl font-bold text-gradient font-display tracking-wider cursor-default drop-shadow-md'>
+                <h2 className='text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-blue via-white to-neon-purple tracking-widest ml-4 cursor-default drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]' style={{ fontFamily: '"Roboto", sans-serif' }}>
                     ConnecT
                 </h2>
 
@@ -100,11 +114,10 @@ const SideDrawer = () => {
 
                     <div className='relative' ref={profileRef}>
                         <div
-                            className="flex items-center space-x-2 cursor-pointer p-1 rounded-md hover:bg-white/10 transition-colors"
+                            className="flex items-center space-x-2 cursor-pointer p-1 rounded-full hover:bg-white/10 transition-colors"
                             onClick={() => setProfileOpen(!profileOpen)}
                         >
                             <img src={user.pic} alt={user.name} className="h-10 w-10 rounded-full object-cover border-2 border-neon-purple/50" />
-                            <i className={`fas fa-chevron-down text-gray-500 text-sm transition-transform ${profileOpen ? 'rotate-180' : ''}`}></i>
                         </div>
 
                         {profileOpen && (

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Orbitron:wght@400;500;700;900&family=Outfit:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,8 +6,8 @@
 
 @layer base {
   body {
-    @apply bg-dark-bg text-white font-sans overflow-x-hidden;
-    background-image: 
+    @apply bg-dark-bg text-white font-sans overflow-hidden;
+    background-image:
       radial-gradient(circle at 15% 50%, rgba(188, 19, 254, 0.15) 0%, transparent 25%),
       radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.15) 0%, transparent 25%);
     background-attachment: fixed;
@@ -18,11 +18,11 @@
   .glass {
     @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl;
   }
-  
+
   .glass-hover {
     @apply hover:bg-white/20 transition-all duration-300;
   }
-  
+
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink;
   }
@@ -33,15 +33,15 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #0a0a0a; 
+    background: #0a0a0a;
   }
- 
+
   ::-webkit-scrollbar-thumb {
-    background: #333; 
+    background: #333;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #555; 
+    background: #555;
   }
 }

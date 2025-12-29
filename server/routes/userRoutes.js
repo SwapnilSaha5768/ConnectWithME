@@ -8,7 +8,10 @@ const {
     forgotPassword,
     resetPassword,
     logoutUser,
-    getMe
+    getMe,
+    blockUser,
+    unblockUser,
+    checkBlockStatus
 } = require('../controllers/authController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
@@ -23,5 +26,8 @@ router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword', resetPassword);
 router.post('/logout', logoutUser);
 router.get('/me', optionalProtect, getMe);
+router.put('/block', protect, blockUser);
+router.put('/unblock', protect, unblockUser);
+router.get('/check-block/:userId', protect, checkBlockStatus);
 
 module.exports = router;

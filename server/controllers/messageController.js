@@ -40,6 +40,26 @@ const sendMessage = asyncHandler(async (req, res) => {
     };
 
     try {
+        // Check for blocked users
+        const chat = await Chat.findById(chatId).populate("users", "blockedUsers");
+        if (chat && !chat.isGroupChat) {
+            const otherUser = chat.users.find(u => u._id.toString() !== req.user._id.toString());
+            if (otherUser) {
+                // Check if I blocked them
+                const me = await User.findById(req.user._id);
+                if (me.blockedUsers.includes(otherUser._id)) {
+                    res.status(403);
+                    throw new Error("You have blocked this user");
+                }
+                // Check if they blocked me
+                // Note: user.blockedUsers contains IDs of users they blocked
+                if (otherUser.blockedUsers.includes(req.user._id)) {
+                    res.status(403);
+                    throw new Error("You have been blocked by this user");
+                }
+            }
+        }
+
         var message = await Message.create(newMessage);
 
         message = await message.populate('sender', 'name pic');
@@ -49,7 +69,10 @@ const sendMessage = asyncHandler(async (req, res) => {
             select: 'name pic email',
         });
 
-        await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+        await Chat.findByIdAndUpdate(req.body.chatId, {
+            latestMessage: message,
+            hiddenFor: []
+        });
 
         res.json(message);
     } catch (error) {
@@ -112,4 +135,53 @@ const clearChatMessages = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { allMessages, sendMessage, deleteMessage, clearChatMessages };
+
+// @desc    Mark messages as read
+// @route   PUT /api/message/read
+// @access  Protected
+const readMessage = asyncHandler(async (req, res) => {
+    const { chatId } = req.body;
+
+    if (!chatId) {
+        return res.sendStatus(400);
+    }
+
+    try {
+        const updatedMessages = await Message.updateMany(
+            { chat: chatId, readBy: { $ne: req.user._id } },
+            { $addToSet: { readBy: req.user._id } }
+        );
+
+        res.json(updatedMessages);
+    } catch (error) {
+        res.status(400);
+        throw new Error(error.message);
+    }
+});
+
+// @desc    Mark chat as unread
+// @route   PUT /api/message/unread
+// @access  Protected
+const markUnread = asyncHandler(async (req, res) => {
+    const { chatId } = req.body;
+
+    const chat = await Chat.findById(chatId).populate("latestMessage");
+
+    if (chat && chat.latestMessage) {
+        await Message.findByIdAndUpdate(
+            chat.latestMessage._id,
+            {
+                $pull: { readBy: req.user._id }
+            },
+            {
+                new: true,
+            }
+        );
+        res.status(200).send("Marked as unread");
+    } else {
+        res.status(404);
+        throw new Error("Chat or Message not found");
+    }
+});
+
+module.exports = { allMessages, sendMessage, deleteMessage, clearChatMessages, readMessage, markUnread };

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '../../utils/cropImage';
+import { toast } from 'react-toastify';
 import { X, Check } from 'lucide-react';
 
 const ImageCropper = ({ imageSrc, onCropComplete, onCancel }) => {
@@ -33,7 +34,7 @@ const ImageCropper = ({ imageSrc, onCropComplete, onCancel }) => {
             onCropComplete(file);
         } catch (e) {
             console.error(e);
-            alert("Failed to crop image");
+            toast.error("Failed to crop image");
         }
         setLoading(false);
     };

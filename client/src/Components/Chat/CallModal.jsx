@@ -77,32 +77,13 @@ const CallModal = ({
                 </h2>
                 <p className="text-xl font-bold text-neon-blue mb-8">{call.name || name}</p>
 
-                {/* Audio Elements - Visible for Debugging */}
-                <div className="flex gap-2 opacity-50 mb-4">
-                    {stream && (
-                        <div>
-                            <p className="text-xs text-white">My Mic</p>
-                            <audio playsInline ref={myVideo} autoPlay muted controls className="w-24 h-8" />
-                        </div>
-                    )}
-                    {callAccepted && !callEnded && (
-                        <div>
-                            <p className="text-xs text-white">Remote Audio</p>
-                            <audio playsInline ref={userVideo} autoPlay controls className="w-24 h-8" />
-                        </div>
-                    )}
-                </div>
-
-                {/* Debugging / Mobile Unlock */}
-                <button
-                    onClick={() => {
-                        if (myVideo.current) myVideo.current.play();
-                        if (userVideo.current) userVideo.current.play();
-                    }}
-                    className="text-xs text-neon-blue underline mb-4 hover:text-white transition-colors"
-                >
-                    Tap here if no audio (Unlock)
-                </button>
+                {/* Hidden Audio Elements for Stream Playback */}
+                {stream && (
+                    <audio playsInline ref={myVideo} autoPlay muted className="hidden" />
+                )}
+                {callAccepted && !callEnded && (
+                    <audio playsInline ref={userVideo} autoPlay className="hidden" />
+                )}
 
                 {/* Controls */}
                 <div className="flex items-center gap-6">

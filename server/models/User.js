@@ -17,6 +17,7 @@ const userSchema = mongoose.Schema(
         otpExpires: { type: Date },
         resetPasswordToken: String,
         resetPasswordExpire: Date,
+        blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     },
     { timestamps: true }
 );

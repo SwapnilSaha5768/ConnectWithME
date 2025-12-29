@@ -35,8 +35,9 @@ app.use(cookieParser());
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
-      "http://localhost:5173",
-      "https://connectwithme-six.vercel.app"
+      // "https://localhost:5173",
+      "https://connectwithme-six.vercel.app",
+      // "https://10.212.251.124:5173"
     ];
     // Allow vercel preview deployments
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
@@ -107,6 +108,10 @@ io.on('connection', (socket) => {
 
   socket.on('typing', (room) => socket.in(room).emit('typing'));
   socket.on('stop typing', (room) => socket.in(room).emit('stop typing'));
+
+  socket.on('read message', ({ chatId, userId }) => {
+    socket.in(chatId).emit('message read', { chatId, userId });
+  });
 
   socket.on('new message', (newMessageRecieved) => {
     var chat = newMessageRecieved.chat;
@@ -187,3 +192,4 @@ io.on('connection', (socket) => {
     }
   });
 });
+ // force restart
