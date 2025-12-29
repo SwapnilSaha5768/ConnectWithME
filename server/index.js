@@ -15,21 +15,10 @@ const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Render/Vercel)
 const server = http.createServer(app);
 
-// Security Middleware
-app.use(helmet());
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-});
-app.use(limiter);
-
-const cookieParser = require('cookie-parser');
-
 // Middleware
-app.use(cookieParser());
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
@@ -47,6 +36,23 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Security Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+});
+app.use(limiter);
+
+const cookieParser = require('cookie-parser');
+
+// Middleware
+app.use(cookieParser());
+
 app.use(express.json({ limit: '50mb' }));
 
 connectDB();

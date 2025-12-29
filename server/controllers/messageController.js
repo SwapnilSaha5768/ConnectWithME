@@ -3,11 +3,20 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const Chat = require('../models/Chat');
 
-// @desc    Get all Messages
-// @route   GET /api/message/:chatId
-// @access  Protected
+
 const allMessages = asyncHandler(async (req, res) => {
     try {
+        // First check if user is part of the chat
+        const chat = await Chat.findOne({
+            _id: req.params.chatId,
+            users: { $elemMatch: { $eq: req.user._id } }
+        });
+
+        if (!chat) {
+            res.status(403);
+            throw new Error("Chat not found or access denied");
+        }
+
         const messages = await Message.find({
             chat: req.params.chatId,
             deletedBy: { $ne: req.user._id }
