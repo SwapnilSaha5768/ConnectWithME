@@ -20,6 +20,7 @@ const server = http.createServer(app);
 
 // Middleware
 const allowedOrigins = [
+  "https://localhost:5173",
   "https://connectwithme-six.vercel.app",
 ];
 
@@ -44,7 +45,7 @@ app.use(helmet({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 800
 });
 app.use(limiter);
 

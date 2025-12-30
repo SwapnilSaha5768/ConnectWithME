@@ -155,46 +155,40 @@ const ScrollableChat = ({ messages, setMessages }) => {
                                     <MenuButton className="p-1.5 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                                         <MoreVertical size={16} />
                                     </MenuButton>
-                                    <Transition
-                                        as={Fragment}
-                                        enter="transition ease-out duration-100"
-                                        enterFrom="opacity-0"
-                                        enterTo="opacity-100"
-                                        leave="transition ease-in duration-75"
-                                        leaveFrom="opacity-100"
-                                        leaveTo="opacity-0"
+                                    <MenuItems
+                                        transition
+                                        anchor="top end"
+                                        className="z-50 w-36 origin-bottom-right rounded-xl bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl focus:outline-none p-1 ring-1 ring-black/5 transition duration-100 ease-out data-[closed]:scale-95 data-[closed]:opacity-0"
                                     >
-                                        <MenuItems className="absolute bottom-full mb-2 right-0 z-50 w-36 origin-bottom-right rounded-xl bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl focus:outline-none p-1 ring-1 ring-black/5">
-                                            <div className="px-1 py-1 ">
+                                        <div className="px-1 py-1 ">
+                                            <MenuItem>
+                                                {({ active }) => (
+                                                    <button
+                                                        onClick={() => deleteMessage(m._id, 'me')}
+                                                        className={`${active ? 'bg-white/10 text-white' : 'text-gray-300'
+                                                            } group flex w-full items-center rounded-lg px-2 py-2 text-sm transition-all duration-200`}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4 text-gray-400 group-hover:text-red-400 transition-colors" />
+                                                        Delete
+                                                    </button>
+                                                )}
+                                            </MenuItem>
+                                            {m.sender._id === user._id && (
                                                 <MenuItem>
                                                     {({ active }) => (
                                                         <button
-                                                            onClick={() => deleteMessage(m._id, 'me')}
-                                                            className={`${active ? 'bg-white/10 text-white' : 'text-gray-300'
-                                                                } group flex w-full items-center rounded-lg px-2 py-2 text-sm transition-all duration-200`}
+                                                            onClick={() => deleteMessage(m._id, 'everyone')}
+                                                            className={`${active ? 'bg-red-500/10 text-red-400' : 'text-gray-300'
+                                                                } group flex w-full items-center rounded-lg px-2 py-2 text-sm transition-all duration-200 mt-1`}
                                                         >
-                                                            <Trash2 className="mr-2 h-4 w-4 text-gray-400 group-hover:text-red-400 transition-colors" />
-                                                            Delete
+                                                            <XCircle className="mr-2 h-4 w-4 text-red-400" />
+                                                            Unsend
                                                         </button>
                                                     )}
                                                 </MenuItem>
-                                                {m.sender._id === user._id && (
-                                                    <MenuItem>
-                                                        {({ active }) => (
-                                                            <button
-                                                                onClick={() => deleteMessage(m._id, 'everyone')}
-                                                                className={`${active ? 'bg-red-500/10 text-red-400' : 'text-gray-300'
-                                                                    } group flex w-full items-center rounded-lg px-2 py-2 text-sm transition-all duration-200 mt-1`}
-                                                            >
-                                                                <XCircle className="mr-2 h-4 w-4 text-red-400" />
-                                                                Unsend
-                                                            </button>
-                                                        )}
-                                                    </MenuItem>
-                                                )}
-                                            </div>
-                                        </MenuItems>
-                                    </Transition>
+                                            )}
+                                        </div>
+                                    </MenuItems>
                                 </Menu>
                             </div>
                         </div>

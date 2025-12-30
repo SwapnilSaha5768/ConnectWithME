@@ -3,43 +3,46 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ChatState } from '../../Context/ChatConfig';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema } from '../../utils/validationSchemas';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        resolver: zodResolver(loginSchema),
+    });
+
     const [otp, setOtp] = useState('');
     const [showOtpInput, setShowOtpInput] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [submittedEmail, setSubmittedEmail] = useState('');
+
     const navigate = useNavigate();
     const { setUser } = ChatState();
 
-    const submitHandler = async (e) => {
-        e.preventDefault();
+    const onSubmit = async (data) => {
         setLoading(true);
-        if (!email || !password) {
-            toast.warning('Please fill all the fields');
-            setLoading(false);
-            return;
-        }
+        const { email, password } = data;
 
         try {
             const config = {
                 headers: { 'Content-type': 'application/json' },
             };
 
-            const { data } = await axios.post(
+            const { data: responseData } = await axios.post(
                 '/api/user/login',
                 { email, password },
                 config
             );
 
-            setUser(data);
+            setUser(responseData);
             setLoading(false);
             toast.success('Login Successful');
             navigate('/chats');
         } catch (error) {
             if (error.response && error.response.status === 403 && error.response.data.isVerified === false) {
                 toast.error(error.response.data.message);
+                setSubmittedEmail(email);
                 setShowOtpInput(true);
                 setLoading(false);
                 return;
@@ -66,7 +69,7 @@ const Login = () => {
 
         try {
             const config = { headers: { 'Content-type': 'application/json' } };
-            const { data } = await axios.post('/api/user/verify-otp', { email, otp }, config);
+            const { data } = await axios.post('/api/user/verify-otp', { email: submittedEmail, otp }, config);
 
             setUser(data);
             setLoading(false);
@@ -81,17 +84,16 @@ const Login = () => {
     return (
         <div className='space-y-6 animate-fade-in'>
             {!showOtpInput ? (
-                <>
+                <form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
                     <div className='space-y-2'>
                         <label className='block text-xs font-bold text-neon-blue uppercase tracking-wider'>Email</label>
                         <input
                             type='email'
                             placeholder='Enter your email'
-                            className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none'
-                            onChange={(e) => setEmail(e.target.value)}
-                            value={email}
-                            required
+                            className={`w-full px-4 py-3 rounded-lg bg-dark-surface/50 border ${errors.email ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none`}
+                            {...register("email")}
                         />
+                        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
                     </div>
                     <div className='space-y-2'>
                         <label className='block text-xs font-bold text-neon-blue uppercase tracking-wider'>
@@ -100,14 +102,13 @@ const Login = () => {
                         <input
                             type='password'
                             placeholder='Enter password'
-                            className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none'
-                            onChange={(e) => setPassword(e.target.value)}
-                            value={password}
-                            required
+                            className={`w-full px-4 py-3 rounded-lg bg-dark-surface/50 border ${errors.password ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none`}
+                            {...register("password")}
                         />
+                        {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
                     </div>
                     <button
-                        onClick={submitHandler}
+                        type="submit"
                         disabled={loading}
                         className={`w-full py-3 px-4 rounded-lg font-bold text-lg tracking-wide shadow-[0_0_15px_rgba(0,243,255,0.3)] hover:shadow-[0_0_25px_rgba(0,243,255,0.5)] transition-all duration-300 ${loading
                             ? 'bg-gray-600 cursor-not-allowed'
@@ -125,12 +126,12 @@ const Login = () => {
                             Forgot Password?
                         </Link>
                     </div>
-                </>
+                </form>
             ) : (
                 <div className="space-y-4 animate-fade-in-up">
                     <div className="text-center">
                         <h3 className="text-lg font-display text-white">Enter Verification Code</h3>
-                        <p className="text-gray-400 text-sm">We sent a newly generated 6-digit code to {email}</p>
+                        <p className="text-gray-400 text-sm">We sent a newly generated 6-digit code to {submittedEmail}</p>
                     </div>
                     <div className='space-y-2'>
                         <input

@@ -4,18 +4,20 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ImageCropper from '../Miscellaneous/ImageCropper';
 import { ChatState } from '../../Context/ChatConfig';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { signupSchema } from '../../utils/validationSchemas';
 
 const Signup = () => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmpassword, setConfirmpassword] = useState('');
+    const { register, handleSubmit, formState: { errors }, reset } = useForm({
+        resolver: zodResolver(signupSchema),
+    });
     const [pic, setPic] = useState();
     const [otp, setOtp] = useState('');
     const [otpSent, setOtpSent] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [submittedEmail, setSubmittedEmail] = useState('');
 
-    // Cropper State
     const [showCropper, setShowCropper] = useState(false);
     const [tempImgSrc, setTempImgSrc] = useState(null);
 
@@ -61,6 +63,7 @@ const Signup = () => {
             .then((data) => {
                 setPic(data.data.url.toString());
                 setLoading(false);
+                toast.success('Image Uploaded Successfully');
             })
             .catch((err) => {
                 console.log(err);
@@ -69,32 +72,24 @@ const Signup = () => {
             });
     };
 
-    const submitHandler = async (e) => {
-        e.preventDefault();
+    const onSubmit = async (data) => {
         setLoading(true);
 
-        if (!name || !email || !password || !confirmpassword) {
-            toast.warning('Please fill all the fields');
-            setLoading(false);
-            return;
-        }
-        if (!pic) { // Assuming 'pic' is the final uploaded image URL
+        if (!pic) {
             toast.warning('Please select an image');
             setLoading(false);
             return;
         }
-        if (password !== confirmpassword) {
-            toast.warning('Passwords do not match');
-            setLoading(false);
-            return;
-        }
+
+        const { name, email, password } = data;
 
         try {
             const config = { headers: { 'Content-type': 'application/json' } };
             await axios.post('/api/user/register', { name, email, password, pic }, config);
             toast.success('Registration successful! Please check your email for verification.');
 
-            setShowOtpInput(true);
+            setSubmittedEmail(email);
+            setOtpSent(true);
             setLoading(false);
         } catch (error) {
             toast.error(
@@ -118,7 +113,7 @@ const Signup = () => {
 
         try {
             const config = { headers: { 'Content-type': 'application/json' } };
-            const { data } = await axios.post('/api/user/verify-otp', { email, otp }, config);
+            const { data } = await axios.post('/api/user/verify-otp', { email: submittedEmail, otp }, config);
             localStorage.setItem('userInfo', JSON.stringify(data));
             setUser(data);
             setLoading(false);
@@ -131,11 +126,11 @@ const Signup = () => {
     }
 
     const inputClasses = "w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all outline-none";
+    const errorClasses = "border-red-500";
     const labelClasses = "block text-xs font-bold text-neon-pink uppercase tracking-wider";
 
     return (
         <div className='space-y-5 animate-fade-in'>
-            {/* Cropper Modal - Render outside main flow */}
             {showCropper && (
                 <ImageCropper
                     imageSrc={tempImgSrc}
@@ -145,34 +140,42 @@ const Signup = () => {
             )}
 
             {!otpSent ? (
-                <>
+                <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
                     <div className='space-y-1'>
                         <label className={labelClasses}>Name</label>
                         <input
-                            type='text' placeholder='Enter your name' className={inputClasses}
-                            onChange={(e) => setName(e.target.value)} value={name} required
+                            type='text' placeholder='Enter your name'
+                            className={`${inputClasses} ${errors.name ? errorClasses : ''}`}
+                            {...register("name")}
                         />
+                        {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
                     </div>
                     <div className='space-y-1'>
                         <label className={labelClasses}>Email</label>
                         <input
-                            type='email' placeholder='Enter your email' className={inputClasses}
-                            onChange={(e) => setEmail(e.target.value)} value={email} required
+                            type='email' placeholder='Enter your email'
+                            className={`${inputClasses} ${errors.email ? errorClasses : ''}`}
+                            {...register("email")}
                         />
+                        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
                     </div>
                     <div className='space-y-1'>
                         <label className={labelClasses}>Password</label>
                         <input
-                            type='password' placeholder='Enter Password' className={inputClasses}
-                            onChange={(e) => setPassword(e.target.value)} value={password} required
+                            type='password' placeholder='Enter Password'
+                            className={`${inputClasses} ${errors.password ? errorClasses : ''}`}
+                            {...register("password")}
                         />
+                        {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
                     </div>
                     <div className='space-y-1'>
                         <label className={labelClasses}>Confirm Password</label>
                         <input
-                            type='password' placeholder='Confirm Password' className={inputClasses}
-                            onChange={(e) => setConfirmpassword(e.target.value)} value={confirmpassword} required
+                            type='password' placeholder='Confirm Password'
+                            className={`${inputClasses} ${errors.confirmpassword ? errorClasses : ''}`}
+                            {...register("confirmpassword")}
                         />
+                        {errors.confirmpassword && <p className="text-red-500 text-xs">{errors.confirmpassword.message}</p>}
                     </div>
                     <div className='space-y-1'>
                         <label className={labelClasses}>Profile Picture</label>
@@ -185,7 +188,7 @@ const Signup = () => {
                     </div>
 
                     <button
-                        onClick={submitHandler}
+                        type="submit"
                         disabled={loading}
                         className={`w-full py-3 px-4 rounded-lg font-bold text-lg tracking-wide shadow-[0_0_15px_rgba(255,0,153,0.3)] hover:shadow-[0_0_25px_rgba(255,0,153,0.5)] transition-all duration-300 ${loading
                             ? 'bg-gray-600 cursor-not-allowed'
@@ -194,12 +197,12 @@ const Signup = () => {
                     >
                         {loading ? 'Processing...' : 'Sign Up'}
                     </button>
-                </>
+                </form>
             ) : (
                 <div className="space-y-4 animate-fade-in-up">
                     <div className="text-center">
                         <h3 className="text-lg font-display text-white">Enter Verification Code</h3>
-                        <p className="text-gray-400 text-sm">We sent a 6-digit code to {email}</p>
+                        <p className="text-gray-400 text-sm">We sent a 6-digit code to {submittedEmail}</p>
                     </div>
                     <div className='space-y-2'>
                         <input

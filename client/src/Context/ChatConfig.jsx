@@ -2,9 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
+import Loading from '../Components/Miscellaneous/Loading';
 
 const isProduction = window.location.hostname.includes('vercel.app');
-const ENDPOINT = isProduction ? '/' : (import.meta.env.VITE_SERVER_URL || 'http://localhost:5000');
+const ENDPOINT = isProduction ? '/' : (import.meta.env.VITE_SERVER_URL);
 
 const ChatContext = createContext();
 
@@ -22,34 +23,42 @@ const ChatProvider = ({ children }) => {
     const location = useLocation();
 
     useEffect(() => {
+        let isActive = true;
+
         const fetchUser = async () => {
-            // If user is already set, we don't strictly need to refetch, but checking session validity is good.
             if (!user) {
                 try {
                     const { data } = await axios.get('/api/user/me');
 
-                    if (data) {
-                        setUser(data);
-                    } else {
-                        // User is not authenticated (backend returned null)
-                        if (location.pathname !== '/' && location.pathname !== '/resetpassword' && location.pathname !== '/register') {
+                    if (isActive) {
+                        if (data) {
+                            setUser(data);
+                        } else {
+                            if (location.pathname !== '/' && location.pathname !== '/resetpassword' && location.pathname !== '/register') {
+                                navigate('/');
+                            }
+                        }
+                        setLoading(false);
+                    }
+                } catch (error) {
+                    if (isActive) {
+                        setLoading(false);
+                        if (location.pathname !== '/' && location.pathname !== '/resetpassword') {
                             navigate('/');
                         }
                     }
-                    setLoading(false);
-                } catch (error) {
-                    setLoading(false);
-                    if (location.pathname !== '/' && location.pathname !== '/resetpassword') {
-                        navigate('/');
-                    }
                 }
             } else {
-                setLoading(false);
+                if (isActive) setLoading(false);
             }
         };
 
         fetchUser();
-    }, [navigate, location.pathname]); // Dependencies
+
+        return () => {
+            isActive = false;
+        };
+    }, [navigate, location.pathname]);
 
     useEffect(() => {
         if (user) {
@@ -63,13 +72,17 @@ const ChatProvider = ({ children }) => {
 
             return () => newSocket.close();
         } else {
-            // Clear state when user logs out or is not authenticated
             setChats([]);
             setNotification([]);
             setSelectedChat(null);
             setActiveUsers([]);
         }
     }, [user]);
+
+    // specific routes to not show loading
+    if (loading && location.pathname !== '/' && location.pathname !== '/register' && location.pathname !== '/resetpassword') {
+        return <Loading />;
+    }
 
     return (
         <ChatContext.Provider

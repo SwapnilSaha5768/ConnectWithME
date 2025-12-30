@@ -3,39 +3,37 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { ChatState } from '../../Context/ChatConfig';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { resetPasswordSchema, resetPasswordStep2Schema } from '../../utils/validationSchemas';
 
 const ResetPassword = () => {
-    // Step 1: Email
-    // Step 2: OTP + New Password
     const [step, setStep] = useState(1);
-    const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const { register: registerStep1, handleSubmit: handleSubmitStep1, formState: { errors: errorsStep1 } } = useForm({
+        resolver: zodResolver(resetPasswordSchema),
+    });
+    const { register: registerStep2, handleSubmit: handleSubmitStep2, formState: { errors: errorsStep2 } } = useForm({
+        resolver: zodResolver(resetPasswordStep2Schema),
+    });
+
+    const [email, setEmail] = useState('');
+
     const navigate = useNavigate();
     const { setUser } = ChatState();
 
-    const sendOtpHandler = async (e) => {
-        e.preventDefault();
+    const onStep1Submit = async (data) => {
         setLoading(true);
-        if (!email) {
-            alert("Please enter your email");
-            setLoading(false);
-            return;
-        }
+        const { email: inputEmail } = data;
 
         try {
             const config = { headers: { 'Content-type': 'application/json' } };
-            // Note: Reuse the forgotpassword endpoint which now sends OTP
-            const { data } = await axios.post('/api/user/forgotpassword', { email }, config);
+            const { data: responseData } = await axios.post('/api/user/forgotpassword', { email: inputEmail }, config);
 
-            // On success
+            setEmail(inputEmail);
             setStep(2);
             setLoading(false);
-            toast.success(
-                data.message,
-            );
+            toast.success(responseData.message);
         } catch (error) {
             toast.error(
                 error.response && error.response.data.message
@@ -46,37 +44,23 @@ const ResetPassword = () => {
         }
     };
 
-    const resetPasswordHandler = async (e) => {
-        e.preventDefault();
+    const onStep2Submit = async (data) => {
         setLoading(true);
-
-        if (password !== confirmPassword) {
-            toast.warning("Passwords do not match");
-            setLoading(false);
-            return;
-        }
-
-        if (!otp) {
-            toast.warning("Please enter OTP");
-            setLoading(false);
-            return;
-        }
+        const { otp, password } = data;
 
         try {
             const config = {
                 headers: { 'Content-type': 'application/json' },
             };
 
-            const { data } = await axios.put(
+            const { data: responseData } = await axios.put(
                 '/api/user/resetpassword',
-                { email, otp, password }, // Send all 3
+                { email, otp, password },
                 config
             );
 
-            toast.success(
-                data.message,
-            );
-            setUser(data);
+            toast.success(responseData.message);
+            setUser(responseData);
             setLoading(false);
             navigate('/chats');
         } catch (error) {
@@ -91,7 +75,6 @@ const ResetPassword = () => {
 
     return (
         <div className='min-h-screen flex items-center justify-center p-4 relative overflow-hidden'>
-            {/* Decorative background elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-purple/20 rounded-full blur-[120px] animate-pulse-slow"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-neon-blue/20 rounded-full blur-[120px] animate-pulse-slow animation-delay-2000"></div>
 
@@ -107,20 +90,19 @@ const ResetPassword = () => {
 
                 <div className='p-8'>
                     {step === 1 ? (
-                        <div className="space-y-6 animate-fade-in">
+                        <form onSubmit={handleSubmitStep1(onStep1Submit)} className="space-y-6 animate-fade-in">
                             <div className='space-y-2'>
                                 <label className='block text-xs font-bold text-neon-blue uppercase tracking-wider'>Email Address</label>
                                 <input
                                     type='email'
                                     placeholder='Enter your email'
-                                    className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none'
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    value={email}
-                                    required
+                                    className={`w-full px-4 py-3 rounded-lg bg-dark-surface/50 border ${errorsStep1.email ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none`}
+                                    {...registerStep1("email")}
                                 />
+                                {errorsStep1.email && <p className="text-red-500 text-xs">{errorsStep1.email.message}</p>}
                             </div>
                             <button
-                                onClick={sendOtpHandler}
+                                type="submit"
                                 disabled={loading}
                                 className={`w-full py-3 px-4 rounded-lg font-bold text-lg tracking-wide shadow-[0_0_15px_rgba(0,243,255,0.3)] hover:shadow-[0_0_25px_rgba(0,243,255,0.5)] transition-all duration-300 ${loading
                                     ? 'bg-gray-600 cursor-not-allowed'
@@ -130,51 +112,49 @@ const ResetPassword = () => {
                                 {loading ? 'Sending OTP...' : 'Send OTP'}
                             </button>
                             <button
+                                type="button"
                                 onClick={() => navigate('/')}
                                 className="w-full text-gray-400 hover:text-white text-sm mt-2 transition-colors"
                             >
                                 Back to Login
                             </button>
-                        </div>
+                        </form>
                     ) : (
-                        <div className="space-y-6 animate-fade-in-up">
+                        <form onSubmit={handleSubmitStep2(onStep2Submit)} className="space-y-6 animate-fade-in-up">
                             <div className='space-y-2'>
                                 <label className='block text-xs font-bold text-neon-blue uppercase tracking-wider'>OTP Code</label>
                                 <input
                                     type='text'
                                     placeholder='Enter 6-digit OTP'
-                                    className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all outline-none text-center text-xl tracking-widest font-display'
-                                    onChange={(e) => setOtp(e.target.value)}
-                                    value={otp}
+                                    className={`w-full px-4 py-3 rounded-lg bg-dark-surface/50 border ${errorsStep2.otp ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all outline-none text-center text-xl tracking-widest font-display`}
+                                    {...registerStep2("otp")}
                                     maxLength={6}
-                                    required
                                 />
+                                {errorsStep2.otp && <p className="text-red-500 text-xs">{errorsStep2.otp.message}</p>}
                             </div>
                             <div className='space-y-2'>
                                 <label className='block text-xs font-bold text-neon-blue uppercase tracking-wider'>New Password</label>
                                 <input
                                     type='password'
                                     placeholder='Enter new password'
-                                    className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none'
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    value={password}
-                                    required
+                                    className={`w-full px-4 py-3 rounded-lg bg-dark-surface/50 border ${errorsStep2.password ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none`}
+                                    {...registerStep2("password")}
                                 />
+                                {errorsStep2.password && <p className="text-red-500 text-xs">{errorsStep2.password.message}</p>}
                             </div>
                             <div className='space-y-2'>
                                 <label className='block text-xs font-bold text-neon-blue uppercase tracking-wider'>Confirm Password</label>
                                 <input
                                     type='password'
                                     placeholder='Confirm new password'
-                                    className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none'
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    value={confirmPassword}
-                                    required
+                                    className={`w-full px-4 py-3 rounded-lg bg-dark-surface/50 border ${errorsStep2.confirmPassword ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all outline-none`}
+                                    {...registerStep2("confirmPassword")}
                                 />
+                                {errorsStep2.confirmPassword && <p className="text-red-500 text-xs">{errorsStep2.confirmPassword.message}</p>}
                             </div>
 
                             <button
-                                onClick={resetPasswordHandler}
+                                type="submit"
                                 disabled={loading}
                                 className={`w-full py-3 px-4 rounded-lg font-bold text-lg tracking-wide shadow-[0_0_15px_rgba(72,187,120,0.3)] hover:shadow-[0_0_25px_rgba(72,187,120,0.5)] transition-all duration-300 ${loading
                                     ? 'bg-gray-600 cursor-not-allowed'
@@ -184,12 +164,13 @@ const ResetPassword = () => {
                                 {loading ? 'Resetting...' : 'Reset Password'}
                             </button>
                             <button
+                                type="button"
                                 onClick={() => setStep(1)}
                                 className="w-full text-gray-400 hover:text-white text-sm mt-2 transition-colors"
                             >
                                 Back to Email
                             </button>
-                        </div>
+                        </form>
                     )}
                 </div>
             </div>
