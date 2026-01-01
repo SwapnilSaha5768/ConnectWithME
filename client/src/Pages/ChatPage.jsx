@@ -121,16 +121,20 @@ const ChatPage = () => {
 
     const ICE_SERVERS = [
         { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:global.stun.twilio.com:3478' },
         { urls: 'stun:stun.stunprotocol.org:3478' },
         { urls: 'stun:stun.framasoft.org:3478' },
+        { urls: 'stun:stun.stunprotocol.org:3478' },
     ];
 
     const answerCall = async () => {
         const currentStream = await getMedia(call.isVideo);
         if (!currentStream) return;
 
-        setCallAccepted(true); // Only accept call after media is ready
+        setCallAccepted(true);
         setIsIncoming(false);
 
         const peer = new Peer({
@@ -139,6 +143,10 @@ const ChatPage = () => {
             stream: currentStream,
             config: { iceServers: ICE_SERVERS }
         });
+
+        // Debugging events
+        peer.on('connect', () => console.log('Peer Connected!'));
+        peer.on('close', () => console.log('Peer Connection Closed'));
 
         peer.on('signal', (data) => {
             if (data.type === 'offer' || data.type === 'answer') {
@@ -155,11 +163,12 @@ const ChatPage = () => {
 
         peer.on('error', (err) => {
             console.error("Peer Error:", err);
-            if (err.message && (err.message.includes('User-Initiated Abort') || err.message.includes('Close called'))) {
+            // Ignore intentional close errors
+            if (err.message && (err.message.includes('User-Initiated Abort') || err.message.includes('Close called') || err.code === 'ERR_DATA_CHANNEL')) {
                 return;
             }
-            toast.error("Call connection failed. Please try again.");
-            leaveCall();
+            toast.error("Call connection failed. Retrying...");
+            // Don't leaveCall immediately on minor errors, let it try to recover or user hangup
         });
 
         peer.signal(call.signal);
@@ -190,6 +199,10 @@ const ChatPage = () => {
             config: { iceServers: ICE_SERVERS }
         });
 
+        // Debugging events
+        peer.on('connect', () => console.log('Peer Connected!'));
+        peer.on('close', () => console.log('Peer Connection Closed'));
+
         peer.on('signal', (data) => {
             if (data.type === 'offer' || data.type === 'answer') {
                 socket.emit('callUser', {
@@ -213,11 +226,10 @@ const ChatPage = () => {
         peer.on('error', (err) => {
             console.error("Peer Error:", err);
             // Ignore intentional close errors
-            if (err.message && (err.message.includes('User-Initiated Abort') || err.message.includes('Close called'))) {
+            if (err.message && (err.message.includes('User-Initiated Abort') || err.message.includes('Close called') || err.code === 'ERR_DATA_CHANNEL')) {
                 return;
             }
-            toast.error("Call connection failed. Please try again.");
-            leaveCall();
+            toast.error("Call connection failed. Retrying...");
         });
 
         connectionRef.current = peer;
