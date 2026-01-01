@@ -119,16 +119,38 @@ const ChatPage = () => {
         }
     };
 
-    const ICE_SERVERS = [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' },
-        { urls: 'stun:stun.stunprotocol.org:3478' },
-        { urls: 'stun:stun.framasoft.org:3478' },
-        { urls: 'stun:stun.stunprotocol.org:3478' },
-    ];
+
+    const getIceServers = async () => {
+
+        if (import.meta.env.VITE_METERED_API_KEY && import.meta.env.VITE_METERED_DOMAIN) {
+            try {
+                const response = await axios.get(`https://${import.meta.env.VITE_METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${import.meta.env.VITE_METERED_API_KEY}`);
+                return response.data;
+            } catch (error) {
+                console.error("Failed to fetch Metered ICE servers:", error);
+            }
+        }
+
+        return [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' },
+            {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            }
+        ];
+    };
 
     const answerCall = async () => {
         const currentStream = await getMedia(call.isVideo);
@@ -137,11 +159,13 @@ const ChatPage = () => {
         setCallAccepted(true);
         setIsIncoming(false);
 
+        const iceServers = await getIceServers();
+
         const peer = new Peer({
             initiator: false,
             trickle: true,
             stream: currentStream,
-            config: { iceServers: ICE_SERVERS }
+            config: { iceServers: iceServers }
         });
 
         // Debugging events
@@ -192,11 +216,13 @@ const ChatPage = () => {
         setCallEnded(false);
         setCallAccepted(false);
 
+        const iceServers = await getIceServers();
+
         const peer = new Peer({
             initiator: true,
             trickle: true,
             stream: currentStream,
-            config: { iceServers: ICE_SERVERS }
+            config: { iceServers: iceServers }
         });
 
         // Debugging events
