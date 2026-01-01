@@ -30,6 +30,7 @@ const ChatPage = () => {
     const userVideo = useRef();
     const connectionRef = useRef();
     const streamRef = useRef();
+    const incomingCandidates = useRef([]);
 
     useEffect(() => {
         if (!socket) return;
@@ -74,7 +75,12 @@ const ChatPage = () => {
         });
 
         socket.on('ice-candidate', (candidate) => {
-            if (connectionRef.current) connectionRef.current.signal(candidate);
+            if (connectionRef.current) {
+                connectionRef.current.signal(candidate);
+            } else {
+                if (!incomingCandidates.current) incomingCandidates.current = [];
+                incomingCandidates.current.push(candidate);
+            }
         });
 
         socket.on('endCall', () => {
@@ -158,6 +164,14 @@ const ChatPage = () => {
 
         peer.signal(call.signal);
         connectionRef.current = peer;
+
+        // Process queued candidates
+        if (incomingCandidates.current && incomingCandidates.current.length > 0) {
+            incomingCandidates.current.forEach(candidate => {
+                peer.signal(candidate);
+            });
+            incomingCandidates.current = [];
+        }
     };
 
     const startCall = async (idToCall, userName, userPic, isVideo = false) => {
@@ -250,6 +264,7 @@ const ChatPage = () => {
 
             if (myVideo.current) myVideo.current.srcObject = null;
             if (userVideo.current) userVideo.current.srcObject = null;
+            incomingCandidates.current = [];
         }, 100);
     };
 

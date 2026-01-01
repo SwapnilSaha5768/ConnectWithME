@@ -188,3 +188,17 @@ io.on('connection', (socket) => {
   });
 });
 
+
+const https = require('https');
+
+const keepAlive = () => {
+  const url = 'https://connectwithme-xxng.onrender.com/'
+
+  https.get(url, (res) => {
+    console.log(`Keep-Alive Ping: status code ${res.statusCode}`);
+  }).on('error', (e) => {
+    console.error(`Keep-Alive Ping Error: ${e.message}`);
+  });
+};
+
+setInterval(keepAlive, 14 * 60 * 1000);
