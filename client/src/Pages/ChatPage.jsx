@@ -129,7 +129,7 @@ const ChatPage = () => {
                 },
             };
             const { data } = await axios.get('/api/chat/ice-servers', config);
-            console.log("ICE Servers loaded from backend");
+            console.log("ICE Servers loaded from backend", data); // Added data logging
             return data;
         } catch (error) {
             console.error("Failed to fetch ICE servers from backend:", error);
