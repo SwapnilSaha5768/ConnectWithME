@@ -230,31 +230,47 @@ const deleteChat = asyncHandler(async (req, res) => {
 // @route   GET /api/chat/ice-servers
 // @access  Protected
 const getIceServers = asyncHandler(async (req, res) => {
-    console.log("=== ICE Server Request ===");
-    console.log("METERED_API_KEY exists:", !!process.env.METERED_API_KEY);
-    console.log("METERED_DOMAIN exists:", !!process.env.METERED_DOMAIN);
+    // console.log("=== ICE Server Request ===");
+    // console.log("METERED_API_KEY exists:", !!process.env.METERED_API_KEY);
+    // console.log("METERED_DOMAIN exists:", !!process.env.METERED_DOMAIN);
 
-    try {
-        // 1. Try Metered.ca if configured in SERVER .env
-        if (process.env.METERED_API_KEY && process.env.METERED_DOMAIN) {
-            console.log("Attempting to fetch from Metered.ca...");
+    let iceServers = [];
+
+    // 1. Try Metered.ca if configured in SERVER .env
+    if (process.env.METERED_API_KEY && process.env.METERED_DOMAIN) {
+        try {
+            // console.log("Attempting to fetch from Metered.ca...");
             const axios = require('axios');
-            const meteredUrl = `https://${process.env.METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`;
-            console.log("Metered URL:", meteredUrl.replace(process.env.METERED_API_KEY, "***KEY***"));
+
+            // Sanitization: Remove 'https://' if present and trailing slashes
+            let domain = process.env.METERED_DOMAIN.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            const meteredUrl = `https://${domain}/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`;
+            // console.log("Metered URL target:", `https://${domain}/api/v1/turn/credentials?apiKey=***`);
 
             const response = await axios.get(meteredUrl);
-            console.log("Successfully fetched Metered credentials!");
-            return res.json(response.data);
-        } else {
-            console.log("Metered credentials not configured, using free servers");
+
+            if (response.data && Array.isArray(response.data)) {
+                // console.log("Successfully fetched Metered credentials!");
+                // console.log(`Received ${response.data.length} ICE candidates from Metered.`);
+                return res.json(response.data);
+            } else {
+                console.warn("Metered API returned invalid data format:", response.data);
+            }
+        } catch (error) {
+            console.error("Metered Fetch Error:", error.message);
+            if (error.response) {
+                console.error("Metered Response Status:", error.response.status);
+                console.error("Metered Response Data:", error.response.data);
+            }
+            // Fallthrough to free servers
         }
-    } catch (error) {
-        console.error("Metered Fetch Error:", error.message);
-        console.error("Error details:", error.response?.status, error.response?.data);
-        // Fallthrough to free servers
+    } else {
+        console.log("Metered credentials not configured in .env (METERED_API_KEY or METERED_DOMAIN missing).");
     }
 
     // 2. Fallback: Free Public STUN + OpenRelay
+    // console.log("Using Fallback Free ICE Servers");
     const freeServers = [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:global.stun.twilio.com:3478' },
