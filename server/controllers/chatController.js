@@ -230,15 +230,27 @@ const deleteChat = asyncHandler(async (req, res) => {
 // @route   GET /api/chat/ice-servers
 // @access  Protected
 const getIceServers = asyncHandler(async (req, res) => {
+    console.log("=== ICE Server Request ===");
+    console.log("METERED_API_KEY exists:", !!process.env.METERED_API_KEY);
+    console.log("METERED_DOMAIN exists:", !!process.env.METERED_DOMAIN);
+
     try {
         // 1. Try Metered.ca if configured in SERVER .env
         if (process.env.METERED_API_KEY && process.env.METERED_DOMAIN) {
+            console.log("Attempting to fetch from Metered.ca...");
             const axios = require('axios');
-            const response = await axios.get(`https://${process.env.METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`);
+            const meteredUrl = `https://${process.env.METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`;
+            console.log("Metered URL:", meteredUrl.replace(process.env.METERED_API_KEY, "***KEY***"));
+
+            const response = await axios.get(meteredUrl);
+            console.log("Successfully fetched Metered credentials!");
             return res.json(response.data);
+        } else {
+            console.log("Metered credentials not configured, using free servers");
         }
     } catch (error) {
         console.error("Metered Fetch Error:", error.message);
+        console.error("Error details:", error.response?.status, error.response?.data);
         // Fallthrough to free servers
     }
 
