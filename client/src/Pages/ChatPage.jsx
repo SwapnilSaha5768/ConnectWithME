@@ -125,7 +125,11 @@ const ChatPage = () => {
 
         if (import.meta.env.VITE_METERED_API_KEY && import.meta.env.VITE_METERED_DOMAIN) {
             try {
-                const response = await axios.get(`https://${import.meta.env.VITE_METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${import.meta.env.VITE_METERED_API_KEY}`);
+                // Request must NOT send credentials (cookies) to external Metered API
+                const response = await axios.get(
+                    `https://${import.meta.env.VITE_METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${import.meta.env.VITE_METERED_API_KEY}`,
+                    { withCredentials: false }
+                );
                 return response.data;
             } catch (error) {
                 console.error("Failed to fetch Metered ICE servers:", error);
@@ -188,18 +192,15 @@ const ChatPage = () => {
 
         peer.on('error', (err) => {
             console.error("Peer Error:", err);
-            // Ignore intentional close errors
             if (err.message && (err.message.includes('User-Initiated Abort') || err.message.includes('Close called') || err.code === 'ERR_DATA_CHANNEL')) {
                 return;
             }
             toast.error("Call connection failed. Retrying...");
-            // Don't leaveCall immediately on minor errors, let it try to recover or user hangup
         });
 
         peer.signal(call.signal);
         connectionRef.current = peer;
 
-        // Process queued candidates
         if (incomingCandidates.current && incomingCandidates.current.length > 0) {
             incomingCandidates.current.forEach(candidate => {
                 peer.signal(candidate);
