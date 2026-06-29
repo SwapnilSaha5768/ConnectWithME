@@ -57,6 +57,14 @@ app.use(cookieParser());
 
 app.use(express.json({ limit: '50mb' }));
 
+// Express 5 compatible NoSQL Sanitization
+app.use((req, res, next) => {
+  if (req.body) mongoSanitize.sanitize(req.body);
+  if (req.params) mongoSanitize.sanitize(req.params);
+  if (req.query) mongoSanitize.sanitize(req.query);
+  next();
+});
+
 connectDB();
 
 // Routes

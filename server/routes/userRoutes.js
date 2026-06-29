@@ -11,7 +11,8 @@ const {
     getMe,
     blockUser,
     unblockUser,
-    checkBlockStatus
+    checkBlockStatus,
+    googleAuth
 } = require('../controllers/authController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
@@ -21,6 +22,7 @@ router.route('/').get(protect, allUsers);
 router.route('/profile').put(protect, updateUserProfile);
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+router.post('/google', googleAuth);
 router.post('/verify-otp', verifyOTP);
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword', resetPassword);

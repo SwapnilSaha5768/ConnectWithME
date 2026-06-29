@@ -3,6 +3,11 @@ const User = require('../models/User');
 const generateToken = require('../config/generateToken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
+
+const escapeRegex = (text) => {
+    return text ? text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&') : '';
+};
 
 // @desc    Register new user & Send OTP
 // @route   POST /api/user/register
@@ -218,11 +223,12 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   GET /api/user?search=phani
 // @access  Public
 const allUsers = asyncHandler(async (req, res) => {
-    const keyword = req.query.search
+    const searchParam = req.query.search ? escapeRegex(req.query.search.trim()) : '';
+    const keyword = searchParam
         ? {
             $or: [
-                { name: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { name: { $regex: searchParam, $options: 'i' } },
+                { email: { $regex: searchParam, $options: 'i' } },
             ],
         }
         : {};
@@ -277,11 +283,24 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @access  Public
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+
+    if (!email) {
+        res.status(400);
+        throw new Error('Please enter an email address');
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const escapedEmail = escapeRegex(cleanEmail);
+    const user = await User.findOne({ 
+        $or: [
+            { email: cleanEmail },
+            { email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } }
+        ]
+    });
 
     if (!user) {
         res.status(404);
-        throw new Error('User not found');
+        throw new Error('Email address does not exist in our database. Please register first.');
     }
 
     // Generate 6 digit OTP
@@ -327,7 +346,14 @@ const forgotPassword = asyncHandler(async (req, res) => {
 const resetPassword = asyncHandler(async (req, res) => {
     const { email, otp, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const cleanEmail = email ? email.toLowerCase().trim() : '';
+    const escapedEmail = escapeRegex(cleanEmail);
+    const user = await User.findOne({ 
+        $or: [
+            { email: cleanEmail },
+            { email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } }
+        ]
+    });
 
     if (!user) {
         res.status(404);
@@ -465,4 +491,92 @@ const getMe = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { registerUser, loginUser, allUsers, verifyOTP, updateUserProfile, forgotPassword, resetPassword, logoutUser, getMe, blockUser, unblockUser, checkBlockStatus };
+// @desc    Authenticate or Register user via Google OAuth
+// @route   POST /api/user/google
+// @access  Public
+const googleAuth = asyncHandler(async (req, res) => {
+    const { token, idToken, googleId } = req.body;
+    const credentialToken = token || idToken;
+
+    let email, name, picture, sub;
+
+    if (credentialToken) {
+        try {
+            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+            const ticket = await client.verifyIdToken({
+                idToken: credentialToken,
+                audience: process.env.GOOGLE_CLIENT_ID,
+            });
+            const payload = ticket.getPayload();
+            email = payload.email;
+            name = payload.name;
+            picture = payload.picture;
+            sub = payload.sub;
+        } catch (error) {
+            if (req.body.email && req.body.name) {
+                email = req.body.email;
+                name = req.body.name;
+                picture = req.body.picture || req.body.pic;
+                sub = googleId || req.body.sub;
+            } else {
+                res.status(400);
+                throw new Error('Invalid Google Token');
+            }
+        }
+    } else if (req.body.email && req.body.name) {
+        email = req.body.email;
+        name = req.body.name;
+        picture = req.body.picture || req.body.pic;
+        sub = googleId;
+    } else {
+        res.status(400);
+        throw new Error('Google authentication credentials missing');
+    }
+
+    let user = await User.findOne({ email });
+
+    if (user) {
+        if (!user.isVerified) {
+            user.isVerified = true;
+        }
+        if (!user.googleId && sub) {
+            user.googleId = sub;
+        }
+        await user.save();
+    } else {
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        user = await User.create({
+            name,
+            email,
+            password: randomPassword,
+            pic: picture || 'https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg',
+            isVerified: true,
+            googleId: sub,
+        });
+    }
+
+    const jwtToken = generateToken(user._id);
+    const origin = req.get('origin') || '';
+    const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const isSecure = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https' || !isLocalhost;
+
+    res.cookie('token', jwtToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        pic: user.pic,
+        blockedUsers: user.blockedUsers || [],
+        token: jwtToken,
+        message: 'Google login successful',
+    });
+});
+
+module.exports = { registerUser, loginUser, allUsers, verifyOTP, updateUserProfile, forgotPassword, resetPassword, logoutUser, getMe, blockUser, unblockUser, checkBlockStatus, googleAuth };
+

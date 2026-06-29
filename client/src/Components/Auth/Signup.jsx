@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -7,9 +7,11 @@ import { ChatState } from '../../Context/ChatConfig';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema } from '../../utils/validationSchemas';
+import GoogleAuthButton from './GoogleAuthButton';
+import { User, Mail, Lock, ShieldCheck, Camera, Sparkles } from 'lucide-react';
 
 const Signup = () => {
-    const { register, handleSubmit, formState: { errors }, reset } = useForm({
+    const { register, handleSubmit, formState: { errors } } = useForm({
         resolver: zodResolver(signupSchema),
     });
     const [pic, setPic] = useState();
@@ -21,6 +23,7 @@ const Signup = () => {
     const [showCropper, setShowCropper] = useState(false);
     const [tempImgSrc, setTempImgSrc] = useState(null);
 
+    const fileInputRef = useRef(null);
     const navigate = useNavigate();
     const { setUser } = ChatState();
 
@@ -29,7 +32,7 @@ const Signup = () => {
         if (!file) return;
 
         if (file.type !== 'image/jpeg' && file.type !== 'image/png' && file.type !== 'image/jpg') {
-            return alert("Please select a valid image (JPEG/PNG)");
+            return toast.error("Please select a valid image (JPEG/PNG)");
         }
 
         const reader = new FileReader();
@@ -50,7 +53,7 @@ const Signup = () => {
         const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
 
         if (!apiKey) {
-            alert("Image upload configuration missing. Please check VITE_IMGBB_API_KEY.");
+            toast.error("Image upload configuration missing.");
             setLoading(false);
             return;
         }
@@ -63,7 +66,7 @@ const Signup = () => {
             .then((data) => {
                 setPic(data.data.url.toString());
                 setLoading(false);
-                toast.success('Image Uploaded Successfully');
+                toast.success('Profile picture updated!');
             })
             .catch((err) => {
                 console.log(err);
@@ -76,7 +79,7 @@ const Signup = () => {
         setLoading(true);
 
         if (!pic) {
-            toast.warning('Please select an image');
+            toast.warning('Please upload a profile picture to complete signup');
             setLoading(false);
             return;
         }
@@ -123,14 +126,12 @@ const Signup = () => {
             toast.error('Verification Failed: ' + (error.response && error.response.data.message ? error.response.data.message : error.message));
             setLoading(false);
         }
-    }
+    };
 
-    const inputClasses = "w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all outline-none";
-    const errorClasses = "border-red-500";
-    const labelClasses = "block text-xs font-bold text-neon-pink uppercase tracking-wider";
+    const labelClasses = "block text-xs font-bold text-neon-pink/90 uppercase tracking-wider mb-1";
 
     return (
-        <div className='space-y-5 animate-fade-in'>
+        <div className='space-y-6 animate-fade-in'>
             {showCropper && (
                 <ImageCropper
                     imageSrc={tempImgSrc}
@@ -140,64 +141,118 @@ const Signup = () => {
             )}
 
             {!otpSent ? (
-                <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
-                    <div className='space-y-1'>
-                        <label className={labelClasses}>Name</label>
-                        <input
-                            type='text' placeholder='Enter your name'
-                            className={`${inputClasses} ${errors.name ? errorClasses : ''}`}
-                            {...register("name")}
-                        />
-                        {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
-                    </div>
-                    <div className='space-y-1'>
-                        <label className={labelClasses}>Email</label>
-                        <input
-                            type='email' placeholder='Enter your email'
-                            className={`${inputClasses} ${errors.email ? errorClasses : ''}`}
-                            {...register("email")}
-                        />
-                        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
-                    </div>
-                    <div className='space-y-1'>
-                        <label className={labelClasses}>Password</label>
-                        <input
-                            type='password' placeholder='Enter Password'
-                            className={`${inputClasses} ${errors.password ? errorClasses : ''}`}
-                            {...register("password")}
-                        />
-                        {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
-                    </div>
-                    <div className='space-y-1'>
-                        <label className={labelClasses}>Confirm Password</label>
-                        <input
-                            type='password' placeholder='Confirm Password'
-                            className={`${inputClasses} ${errors.confirmpassword ? errorClasses : ''}`}
-                            {...register("confirmpassword")}
-                        />
-                        {errors.confirmpassword && <p className="text-red-500 text-xs">{errors.confirmpassword.message}</p>}
-                    </div>
-                    <div className='space-y-1'>
-                        <label className={labelClasses}>Profile Picture</label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={onFileSelect}
-                            className={`${inputClasses} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-neon-pink/10 file:text-neon-pink hover:file:bg-neon-pink/20 cursor-pointer`}
-                        />
-                    </div>
+                <div className="space-y-5">
+                    <GoogleAuthButton isSignup={true} />
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`w-full py-3 px-4 rounded-lg font-bold text-lg tracking-wide shadow-[0_0_15px_rgba(255,0,153,0.3)] hover:shadow-[0_0_25px_rgba(255,0,153,0.5)] transition-all duration-300 ${loading
-                            ? 'bg-gray-600 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-pink-500 to-rose-600 text-white'
-                            }`}
-                    >
-                        {loading ? 'Processing...' : 'Sign Up'}
-                    </button>
-                </form>
+                    <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
+                        {/* Interactive Avatar Upload Section */}
+                        <div className="flex flex-col items-center justify-center pb-2">
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-24 h-24 rounded-full border-2 border-neon-pink/60 hover:border-neon-pink shadow-[0_0_20px_rgba(255,0,153,0.35)] hover:shadow-[0_0_30px_rgba(255,0,153,0.6)] transition-all duration-300 cursor-pointer relative group overflow-hidden bg-white/5 flex items-center justify-center"
+                            >
+                                {pic ? (
+                                    <img src={pic} alt="Profile preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-gray-400 group-hover:text-neon-pink transition-colors">
+                                        <Camera className="w-8 h-8 mb-1 animate-bounce-short" />
+                                        <span className="text-[10px] uppercase font-bold tracking-wider">Photo</span>
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white text-xs font-semibold">
+                                    <Camera className="w-6 h-6 mb-0.5" />
+                                    <span>{pic ? 'Change' : 'Upload'}</span>
+                                </div>
+                            </div>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                onChange={onFileSelect}
+                                className="hidden"
+                            />
+                            <p className="text-gray-400 text-xs mt-2 flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-neon-pink" />
+                                {pic ? "Photo uploaded" : "Upload avatar picture"}
+                            </p>
+                        </div>
+
+                        {/* 2-Column Responsive Form Fields */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Name Input */}
+                            <div className='space-y-1'>
+                                <label className={labelClasses}>Full Name</label>
+                                <div className="relative">
+                                    <User className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-400" />
+                                    <input
+                                        type='text'
+                                        placeholder='John Doe'
+                                        className={`w-full pl-10 pr-4 py-2.5 rounded-lg bg-dark-surface/60 border ${errors.name ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-pink focus:ring-2 focus:ring-neon-pink/30 transition-all outline-none text-sm`}
+                                        {...register("name")}
+                                    />
+                                </div>
+                                {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
+                            </div>
+
+                            {/* Email Input */}
+                            <div className='space-y-1'>
+                                <label className={labelClasses}>Email Address</label>
+                                <div className="relative">
+                                    <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-400" />
+                                    <input
+                                        type='email'
+                                        placeholder='john@example.com'
+                                        className={`w-full pl-10 pr-4 py-2.5 rounded-lg bg-dark-surface/60 border ${errors.email ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-pink focus:ring-2 focus:ring-neon-pink/30 transition-all outline-none text-sm`}
+                                        {...register("email")}
+                                    />
+                                </div>
+                                {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
+                            </div>
+
+                            {/* Password Input */}
+                            <div className='space-y-1'>
+                                <label className={labelClasses}>Password</label>
+                                <div className="relative">
+                                    <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-400" />
+                                    <input
+                                        type='password'
+                                        placeholder='••••••••'
+                                        className={`w-full pl-10 pr-4 py-2.5 rounded-lg bg-dark-surface/60 border ${errors.password ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-pink focus:ring-2 focus:ring-neon-pink/30 transition-all outline-none text-sm`}
+                                        {...register("password")}
+                                    />
+                                </div>
+                                {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
+                            </div>
+
+                            {/* Confirm Password Input */}
+                            <div className='space-y-1'>
+                                <label className={labelClasses}>Confirm Password</label>
+                                <div className="relative">
+                                    <ShieldCheck className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-400" />
+                                    <input
+                                        type='password'
+                                        placeholder='••••••••'
+                                        className={`w-full pl-10 pr-4 py-2.5 rounded-lg bg-dark-surface/60 border ${errors.confirmpassword ? 'border-red-500' : 'border-white/10'} text-white placeholder-gray-500 focus:border-neon-pink focus:ring-2 focus:ring-neon-pink/30 transition-all outline-none text-sm`}
+                                        {...register("confirmpassword")}
+                                    />
+                                </div>
+                                {errors.confirmpassword && <p className="text-red-400 text-xs mt-1">{errors.confirmpassword.message}</p>}
+                            </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full mt-4 py-3 px-4 rounded-xl font-bold text-base tracking-wider shadow-[0_0_20px_rgba(255,0,153,0.4)] hover:shadow-[0_0_30px_rgba(255,0,153,0.7)] transition-all duration-300 flex items-center justify-center gap-2 ${loading
+                                ? 'bg-gray-600 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white hover:scale-[1.01]'
+                                }`}
+                        >
+                            {loading ? 'Processing Registration...' : 'Create Account'}
+                        </button>
+                    </form>
+                </div>
             ) : (
                 <div className="space-y-4 animate-fade-in-up">
                     <div className="text-center">
@@ -207,7 +262,7 @@ const Signup = () => {
                     <div className='space-y-2'>
                         <input
                             type='text' placeholder='Enter 6-digit OTP'
-                            className={`${inputClasses} text-center text-2xl tracking-[0.5em] font-display`}
+                            className='w-full px-4 py-3 rounded-lg bg-dark-surface/50 border border-white/10 text-white placeholder-gray-500 focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all outline-none text-center text-2xl tracking-[0.5em] font-display'
                             onChange={(e) => setOtp(e.target.value)} value={otp} maxLength={6}
                         />
                     </div>

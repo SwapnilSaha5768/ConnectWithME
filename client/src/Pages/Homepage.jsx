@@ -21,7 +21,7 @@ const Homepage = () => {
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-purple/20 rounded-full blur-[120px] animate-pulse-slow"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-neon-blue/20 rounded-full blur-[120px] animate-pulse-slow animation-delay-2000"></div>
 
-            <div className='glass w-full max-w-lg rounded-2xl overflow-hidden relative z-10'>
+            <div className='glass w-full max-w-xl rounded-2xl overflow-hidden relative z-10'>
                 <div className='p-6 md:p-8 text-center border-b border-white/10 bg-white/5'>
                     <h1 className='text-5xl font-display font-bold text-gradient tracking-wider mb-2 drop-shadow-lg'>
                         ConnecT

@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.2.2",
+    "@react-oauth/google": "^0.13.5",
     "axios": "^1.7.2",
     "framer-motion": "^11.2.10",
     "lucide-react": "^0.562.0",
